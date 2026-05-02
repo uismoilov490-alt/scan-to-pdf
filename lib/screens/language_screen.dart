@@ -29,7 +29,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -62,7 +62,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
               Text(
                 'choose_language_subtitle'.tr(),
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey[600],
+                  color: theme.colorScheme.onSurfaceVariant,
                   height: 1.4,
                 ),
               ),
@@ -82,12 +82,12 @@ class _LanguageScreenState extends State<LanguageScreen> {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? theme.colorScheme.primaryContainer
-                                : Colors.white,
+                                : theme.colorScheme.surfaceContainerLow,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isSelected
                                   ? theme.colorScheme.primary
-                                  : Colors.grey.shade300,
+                                  : theme.colorScheme.outlineVariant,
                               width: isSelected ? 2 : 1.2,
                             ),
                             boxShadow: [
@@ -123,7 +123,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
                                     Text(
                                       lang.subtitle,
                                       style: TextStyle(
-                                        color: Colors.grey[600],
+                                        color: theme.colorScheme.onSurfaceVariant,
                                         fontSize: 13,
                                       ),
                                     ),
@@ -136,7 +136,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
                                     : Icons.radio_button_off,
                                 color: isSelected
                                     ? theme.colorScheme.primary
-                                    : Colors.grey.shade400,
+                                    : theme.colorScheme.onSurfaceVariant,
                                 size: 24,
                               ),
                             ],
@@ -159,12 +159,12 @@ class _LanguageScreenState extends State<LanguageScreen> {
                     ),
                   ),
                   child: _loading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            color: Colors.white,
+                            color: theme.colorScheme.onPrimary,
                           ),
                         )
                       : Text(

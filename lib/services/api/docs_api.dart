@@ -2,8 +2,32 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'api_client.dart';
 
-enum DocType { scan, ocr, compress, wordToPdf, pdfToWord, passportScan, idCardScan }
-enum DocStatus { pending, processing, done, failed }
+enum DocType {
+  scan, ocr, compress, wordToPdf, pdfToWord, passportScan, idCardScan;
+
+  static DocType fromString(String s) => switch (s) {
+    'scan'          => DocType.scan,
+    'ocr'           => DocType.ocr,
+    'compress'      => DocType.compress,
+    'word_to_pdf'   => DocType.wordToPdf,
+    'pdf_to_word'   => DocType.pdfToWord,
+    'passport_scan' => DocType.passportScan,
+    'id_card_scan'  => DocType.idCardScan,
+    _               => DocType.scan,
+  };
+}
+
+enum DocStatus {
+  pending, processing, done, failed;
+
+  static DocStatus fromString(String s) => switch (s) {
+    'pending'    => DocStatus.pending,
+    'processing' => DocStatus.processing,
+    'done'       => DocStatus.done,
+    'failed'     => DocStatus.failed,
+    _            => DocStatus.pending,
+  };
+}
 
 class DocRecord {
   final String id;
@@ -29,38 +53,21 @@ class DocRecord {
   });
 
   factory DocRecord.fromJson(Map<String, dynamic> j) => DocRecord(
-    id:         j['id'] as String,
-    type:       _parseType(j['type'] as String),
-    status:     _parseStatus(j['status'] as String),
-    name:       j['name'] as String,
-    fileSize:   j['file_size'] as int?,
-    pageCount:  j['page_count'] as int?,
-    metadata:   j['metadata'] as Map<String, dynamic>?,
-    error:      j['error'] as String?,
-    createdAt:  DateTime.parse(j['created_at'] as String),
+    id:        j['id'] as String,
+    type:      DocType.fromString(j['type'] as String),
+    status:    DocStatus.fromString(j['status'] as String),
+    name:      j['name'] as String,
+    fileSize:  j['file_size'] as int?,
+    pageCount: j['page_count'] as int?,
+    metadata:  j['metadata'] as Map<String, dynamic>?,
+    error:     j['error'] as String?,
+    createdAt: DateTime.parse(j['created_at'] as String),
   );
 
   bool get isDone       => status == DocStatus.done;
   bool get isFailed     => status == DocStatus.failed;
   bool get isProcessing => status == DocStatus.pending || status == DocStatus.processing;
 }
-
-DocType _parseType(String s) => const {
-  'scan':           DocType.scan,
-  'ocr':            DocType.ocr,
-  'compress':       DocType.compress,
-  'word_to_pdf':    DocType.wordToPdf,
-  'pdf_to_word':    DocType.pdfToWord,
-  'passport_scan':  DocType.passportScan,
-  'id_card_scan':   DocType.idCardScan,
-}[s] ?? DocType.scan;
-
-DocStatus _parseStatus(String s) => const {
-  'pending':    DocStatus.pending,
-  'processing': DocStatus.processing,
-  'done':       DocStatus.done,
-  'failed':     DocStatus.failed,
-}[s] ?? DocStatus.pending;
 
 class DocsApi {
   final Dio _dio = ApiClient.instance.dio;

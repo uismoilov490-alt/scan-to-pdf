@@ -39,9 +39,19 @@ class _OcrScreenState extends State<OcrScreen> {
     try {
       final inputImage = InputImage.fromFile(_image!);
       final result = await _recognizer.processImage(inputImage);
-      if (mounted) setState(() { _text = result.text; _processing = false; });
+      if (mounted) {
+        setState(() {
+          _text = result.text;
+          _processing = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _processing = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _processing = false;
+        });
+      }
     }
   }
 
@@ -59,10 +69,10 @@ class _OcrScreenState extends State<OcrScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: theme.colorScheme.onPrimary,
         title: Text('ocr_title'.tr()),
         actions: [
           if (_text != null && _text!.isNotEmpty)
@@ -99,7 +109,10 @@ class _OcrScreenState extends State<OcrScreen> {
           children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
-            Text('ocr_processing'.tr(), style: TextStyle(color: Colors.grey[600])),
+            Text(
+              'ocr_processing'.tr(),
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            ),
           ],
         ),
       );
@@ -121,7 +134,12 @@ class _OcrScreenState extends State<OcrScreen> {
     }
     if (_text != null) {
       if (_text!.isEmpty) {
-        return Center(child: Text('ocr_no_text'.tr(), style: TextStyle(color: Colors.grey[600])));
+        return Center(
+          child: Text(
+            'ocr_no_text'.tr(),
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        );
       }
       return SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -129,13 +147,27 @@ class _OcrScreenState extends State<OcrScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12)],
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.35 : 0.06,
+                ),
+                blurRadius: 12,
+              ),
+            ],
           ),
           child: SelectableText(
             _text!,
-            style: const TextStyle(fontSize: 15, height: 1.7),
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.7,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
       );
@@ -149,9 +181,14 @@ class _OcrScreenState extends State<OcrScreen> {
             Icon(Icons.chrome_reader_mode_outlined, size: 80,
                 color: theme.colorScheme.primary.withValues(alpha: 0.35)),
             const SizedBox(height: 20),
-            Text('ocr_hint'.tr(),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 15)),
+            Text(
+              'ocr_hint'.tr(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 15,
+              ),
+            ),
           ],
         ),
       ),

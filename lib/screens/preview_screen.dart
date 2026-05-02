@@ -62,7 +62,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
           content: Text(
             'pdf_saved'.tr(namedArgs: {'name': file.path.split('/').last}),
           ),
-          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
         ),
       );
@@ -84,12 +84,14 @@ class _PreviewScreenState extends State<PreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final overlayFill = cs.scrim.withValues(alpha: 0.5);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: theme.colorScheme.onPrimary,
         title: Text(
           'pages_count'.tr(
             namedArgs: {'count': widget.pages.length.toString()},
@@ -126,13 +128,13 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black54,
+                          color: overlayFill,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           '${index + 1} / ${widget.pages.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: cs.onPrimary,
                             fontSize: 13,
                           ),
                         ),
@@ -143,8 +145,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         child: FloatingActionButton.small(
                           heroTag: 'rotate_$index',
                           onPressed: () => _rotatePage(index),
-                          backgroundColor: Colors.black54,
-                          foregroundColor: Colors.white,
+                          backgroundColor: overlayFill,
+                          foregroundColor: cs.onPrimary,
                           elevation: 0,
                           child: const Icon(Icons.rotate_right),
                         ),
@@ -156,7 +158,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
             ),
           ),
           Container(
-            color: Colors.white,
+            color: cs.surfaceContainerHigh,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -165,7 +167,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   'file_name_label'.tr(),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
+                    color: cs.onSurfaceVariant,
                     fontSize: 13,
                   ),
                 ),
@@ -196,12 +198,12 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   child: FilledButton.icon(
                     onPressed: _generating ? null : _generatePdf,
                     icon: _generating
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: cs.onPrimary,
                             ),
                           )
                         : const Icon(Icons.picture_as_pdf),

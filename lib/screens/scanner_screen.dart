@@ -78,10 +78,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: theme.colorScheme.onPrimary,
         title: Text(
           _pages.isEmpty
               ? 'add_image'.tr()
@@ -95,8 +95,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
               onPressed: _processing ? null : _goToPreview,
               child: Text(
                 'continue_btn'.tr(),
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: theme.colorScheme.onPrimary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -124,7 +124,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
             'take_photo_hint'.tr(),
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 32),
@@ -210,9 +210,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
               ),
               ReorderableDragStartListener(
                 index: index,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Icon(Icons.drag_handle, color: Colors.grey),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Icon(
+                    Icons.drag_handle,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
@@ -249,12 +252,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
               child: FilledButton.icon(
                 onPressed: _processing ? null : _goToPreview,
                 icon: _processing
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: theme.colorScheme.onPrimary,
                         ),
                       )
                     : const Icon(Icons.picture_as_pdf),

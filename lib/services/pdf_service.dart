@@ -1,11 +1,29 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 
+import 'settings_service.dart';
+
 class PdfService {
+  static Future<Directory> _pdfSaveDirectory() async {
+    final custom = await SettingsService.loadCustomPdfDirectory();
+    if (custom != null && custom.isNotEmpty) {
+      final dir = Directory(custom);
+      if (await dir.exists()) {
+        await dir.create(recursive: true);
+        return dir;
+      }
+    }
+    final base = await getApplicationDocumentsDirectory();
+    final fallback = Directory(p.join(base.path, 'scan_to_pdf'));
+    await fallback.create(recursive: true);
+    return fallback;
+  }
+
   static Future<File> generatePdf({
     required List<File> imageFiles,
     required String fileName,
@@ -41,9 +59,7 @@ class PdfService {
       );
     }
 
-    final dir = await getApplicationDocumentsDirectory();
-    final pdfDir = Directory('${dir.path}/scan_to_pdf');
-    await pdfDir.create(recursive: true);
+    final pdfDir = await _pdfSaveDirectory();
 
     final safe = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
     final baseName = safe.isEmpty ? 'scan_document' : safe;
@@ -66,8 +82,7 @@ class PdfService {
   }
 
   static Future<List<File>> listSavedPdfs() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final pdfDir = Directory('${dir.path}/scan_to_pdf');
+    final pdfDir = await _pdfSaveDirectory();
     if (!await pdfDir.exists()) return [];
 
     final files = pdfDir

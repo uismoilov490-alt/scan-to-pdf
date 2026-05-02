@@ -4,9 +4,21 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/app_language.dart';
+import '../services/api/api_client.dart';
 import '../services/pdf_service.dart';
+import '../services/user_service.dart';
 import 'register_screen.dart';
+import 'saved_documents_screen.dart';
 import 'scanner_screen.dart';
+import 'settings_screen.dart';
+import 'features/overlay_camera_screen.dart';
+import 'features/ocr_screen.dart';
+import 'features/pdf_edit_screen.dart';
+import 'features/pdf_compress_screen.dart';
+import 'features/word_to_pdf_screen.dart';
+import 'features/pdf_to_word_screen.dart';
+import 'features/cyrillic_latin_screen.dart';
+import '../widgets/subscription_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<File> _pdfs = [];
   bool _loading = true;
   AppLanguage _selectedLanguage = AppLanguage.uzbek;
+  UserData? _user;
 
   @override
   void didChangeDependencies() {
@@ -30,6 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadPdfs();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await UserService.getUser();
+    if (mounted) setState(() => _user = user);
   }
 
   Future<void> _loadPdfs() async {
@@ -48,6 +67,123 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => const ScannerScreen()),
     );
     _loadPdfs();
+  }
+
+  Future<void> _openOverlayCamera(ScanOverlayMode mode) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => OverlayCameraScreen(mode: mode)),
+    );
+    if (result == true) _loadPdfs();
+  }
+
+  Future<void> _openOcr() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const OcrScreen()),
+    );
+  }
+
+  Future<void> _openPdfEdit() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const PdfEditScreen()),
+    );
+    if (result == true) _loadPdfs();
+  }
+
+  Future<void> _openPdfCompress() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PdfCompressScreen()),
+    );
+    _loadPdfs();
+  }
+
+  Future<void> _openWordToPdf() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const WordToPdfScreen()),
+    );
+    _loadPdfs();
+  }
+
+  Future<void> _openPdfToWord() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PdfToWordScreen()),
+    );
+  }
+
+  Future<void> _openTransliteration() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CyrillicLatinScreen()),
+    );
+  }
+
+  Future<void> _openRegister() async {
+    Navigator.pop(context);
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+    );
+    if (mounted) _loadUser();
+  }
+
+  void _openSubscriptionsSheet() => SubscriptionSheet.show(context);
+
+  Future<void> _openSavedDocuments() async {
+    Navigator.pop(context);
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const SavedDocumentsScreen()),
+    );
+    if (mounted) _loadPdfs();
+  }
+
+  Future<void> _signOut() async {
+    if (_user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('profile_not_logged_in'.tr()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('profile_logout_confirm_title'.tr()),
+        content: Text('profile_logout_confirm_body'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('cancel'.tr()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('profile_logout'.tr()),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    Navigator.pop(context);
+    await UserService.clearUser();
+    await ApiClient.clearTokens();
+    if (!mounted) return;
+    setState(() => _user = null);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('profile_logout_success'.tr()),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _viewPdf(File file) async {
@@ -126,7 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final selected = await showModalBottomSheet<AppLanguage>(
       context: context,
       showDragHandle: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -151,7 +287,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 6),
                     Text(
                       'language_subtitle'.tr(),
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     ...AppLanguage.values.map((lang) {
@@ -170,12 +308,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? Theme.of(context).colorScheme.primaryContainer
-                                  : const Color(0xFFF6F7FB),
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isSelected
                                     ? Theme.of(context).colorScheme.primary
-                                    : Colors.grey.shade300,
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .outlineVariant,
                                 width: 1.2,
                               ),
                             ),
@@ -200,7 +342,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Text(
                                         lang.subtitle,
                                         style: TextStyle(
-                                          color: Colors.grey[600],
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -213,7 +357,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       : Icons.radio_button_off,
                                   color: isSelected
                                       ? Theme.of(context).colorScheme.primary
-                                      : Colors.grey,
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                 ),
                               ],
                             ),
@@ -250,14 +396,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
       drawer: _buildAppDrawer(theme),
       appBar: AppBar(
         backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: theme.colorScheme.onPrimary,
         title: Text(
           'app_title'.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onPrimary,
+          ),
         ),
         actions: [
           Padding(
@@ -265,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: TextButton.icon(
               onPressed: _showLanguagePicker,
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
+                foregroundColor: theme.colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -284,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: const Icon(Icons.document_scanner),
         label: Text('scan'.tr()),
         backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: theme.colorScheme.onPrimary,
       ),
     );
   }
@@ -303,52 +452,67 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildFeatureGrid(ThemeData theme) {
     final features = <_QuickFeature>[
       _QuickFeature(
-        title: 'Hujjat',
+        title: 'feature_document'.tr(),
         icon: Icons.document_scanner_rounded,
         gradientStart: const Color(0xFF1E3A5F),
         gradientEnd: const Color(0xFF3D6BA8),
+        onTap: _openScanner,
       ),
       _QuickFeature(
-        title: 'Pasport',
+        title: 'feature_passport'.tr(),
         icon: Icons.contact_page_rounded,
         gradientStart: const Color(0xFF134E4A),
         gradientEnd: const Color(0xFF2D6A4F),
+        onTap: () => _openOverlayCamera(ScanOverlayMode.passport),
       ),
       _QuickFeature(
-        title: 'ID karta',
+        title: 'feature_id_card'.tr(),
         icon: Icons.perm_contact_calendar_rounded,
         gradientStart: const Color(0xFF3730A3),
         gradientEnd: const Color(0xFF6366F1),
+        onTap: () => _openOverlayCamera(ScanOverlayMode.idCard),
       ),
       _QuickFeature(
-        title: 'Tekstni ajratish',
+        title: 'feature_extract_text'.tr(),
         icon: Icons.chrome_reader_mode,
         gradientStart: const Color(0xFF92400E),
         gradientEnd: const Color(0xFFD97706),
+        onTap: _openOcr,
       ),
       _QuickFeature(
-        title: 'PDF tahrirlash',
+        title: 'feature_pdf_edit'.tr(),
         icon: Icons.picture_as_pdf_rounded,
         gradientStart: const Color(0xFF7F1D1D),
         gradientEnd: const Color(0xFFB91C1C),
+        onTap: _openPdfEdit,
       ),
       _QuickFeature(
-        title: 'PDF siqish',
+        title: 'feature_pdf_compress'.tr(),
         icon: Icons.folder_zip_rounded,
         gradientStart: const Color(0xFF0E7490),
         gradientEnd: const Color(0xFF0891B2),
+        onTap: _openPdfCompress,
       ),
       _QuickFeature(
-        title: 'Word to PDF',
+        title: 'feature_word_to_pdf'.tr(),
         icon: Icons.article_rounded,
         gradientStart: const Color(0xFF1E3A8A),
         gradientEnd: const Color(0xFF2563EB),
+        onTap: _openWordToPdf,
       ),
       _QuickFeature(
-        title: 'PDF to Word',
+        title: 'feature_pdf_to_word'.tr(),
         icon: Icons.import_export_rounded,
         gradientStart: const Color(0xFF064E3B),
         gradientEnd: const Color(0xFF059669),
+        onTap: _openPdfToWord,
+      ),
+      _QuickFeature(
+        title: 'translit_feature'.tr(),
+        icon: Icons.translate_rounded,
+        gradientStart: const Color(0xFF5B21B6),
+        gradientEnd: const Color(0xFF7C3AED),
+        onTap: _openTransliteration,
       ),
     ];
 
@@ -356,17 +520,25 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.fromLTRB(14, 14, 14, 8),
       padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(
+            alpha: theme.brightness == Brightness.dark ? 0.55 : 0.35,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(
+              alpha: theme.brightness == Brightness.dark ? 0.45 : 0.06,
+            ),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: theme.colorScheme.primary.withValues(alpha: 0.06),
+            color: theme.colorScheme.primary.withValues(
+              alpha: theme.brightness == Brightness.dark ? 0.12 : 0.06,
+            ),
             blurRadius: 18,
             offset: const Offset(0, 4),
           ),
@@ -397,17 +569,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () {
-                  Navigator.pop(context);
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!context.mounted) return;
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const RegisterScreen(),
-                      ),
-                    );
-                  });
-                },
+                onTap: _user == null ? _openRegister : null,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
@@ -423,31 +585,29 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.person, color: Colors.white, size: 28),
-                      ),
+                      _UserAvatar(user: _user),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'drawer_login_profile'.tr(),
-                              style: const TextStyle(
-                                color: Colors.white,
+                              _user != null
+                                  ? _user!.displayIdentifier
+                                  : 'drawer_login_profile'.tr(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'drawer_guest_user'.tr(),
+                              _user != null
+                                  ? _user!.name
+                                  : 'drawer_guest_user'.tr(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -470,21 +630,53 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 8),
             _DrawerMenuTile(
+              icon: Icons.workspace_premium_rounded,
+              title: 'profile_my_subscriptions'.tr(),
+              subtitle: 'profile_my_subscriptions_subtitle'.tr(),
+              onTap: () {
+                Navigator.pop(context);
+                _openSubscriptionsSheet();
+              },
+            ),
+            _DrawerMenuTile(
+              icon: Icons.folder_special_rounded,
+              title: 'profile_saved_documents'.tr(),
+              subtitle: 'profile_saved_documents_subtitle'.tr(),
+              onTap: _openSavedDocuments,
+            ),
+            _DrawerMenuTile(
+              icon: Icons.logout_rounded,
+              title: 'profile_logout'.tr(),
+              subtitle: 'profile_logout_subtitle'.tr(),
+              onTap: _signOut,
+            ),
+            _DrawerMenuTile(
               icon: Icons.settings_outlined,
-              title: 'Sozlamalar',
-              subtitle: 'Ilova parametrlarini boshqarish',
-              onTap: () => Navigator.pop(context),
+              title: 'settings_title'.tr(),
+              subtitle: 'settings_drawer_subtitle'.tr(),
+              onTap: () {
+                Navigator.pop(context);
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SettingsScreen(),
+                    ),
+                  );
+                  if (context.mounted) _loadPdfs();
+                });
+              },
             ),
             _DrawerMenuTile(
               icon: Icons.share_outlined,
-              title: 'Do\'stlarga ulashish',
-              subtitle: 'Ilovani yaqinlaringizga tavsiya qiling',
+              title: 'drawer_share'.tr(),
+              subtitle: 'drawer_share_subtitle'.tr(),
               onTap: () => Navigator.pop(context),
             ),
             _DrawerMenuTile(
               icon: Icons.description_outlined,
-              title: 'Foydalanish shartlari',
-              subtitle: 'Qoidalar va maxfiylik siyosati',
+              title: 'drawer_terms'.tr(),
+              subtitle: 'drawer_terms_subtitle'.tr(),
               onTap: () => Navigator.pop(context),
             ),
           ],
@@ -507,7 +699,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             'no_documents'.tr(),
             style: theme.textTheme.titleLarge?.copyWith(
-              color: Colors.grey[600],
+              color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -515,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             'no_documents_hint'.tr(),
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[500],
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
             ),
           ),
         ],
@@ -564,9 +756,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Text(
                           name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
+                            color: theme.colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -575,14 +768,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           _formatDate(stat.modified),
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: theme.colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
                         Text(
                           _formatSize(stat.size),
                           style: TextStyle(
-                            color: Colors.grey[500],
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.8),
                             fontSize: 11,
                           ),
                         ),
@@ -651,7 +845,7 @@ class _DrawerMenuTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
       child: Material(
-        color: const Color(0xFFF7F8FC),
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(14),
         child: ListTile(
           onTap: onTap,
@@ -673,9 +867,15 @@ class _DrawerMenuTile extends StatelessWidget {
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
           ),
-          trailing: const Icon(Icons.chevron_right_rounded),
+          trailing: Icon(
+            Icons.chevron_right_rounded,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -687,12 +887,14 @@ class _QuickFeature {
   final IconData icon;
   final Color gradientStart;
   final Color gradientEnd;
+  final VoidCallback onTap;
 
   _QuickFeature({
     required this.title,
     required this.icon,
     required this.gradientStart,
     required this.gradientEnd,
+    required this.onTap,
   });
 }
 
@@ -704,16 +906,27 @@ class _ProFeatureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final shadowColor = Color.lerp(
       feature.gradientEnd,
       Colors.black,
-      0.35,
+      isDark ? 0.55 : 0.35,
     )!;
+    final highlight = Color.lerp(
+      feature.gradientStart,
+      isDark ? cs.surface : Colors.white,
+      isDark ? 0.14 : 0.08,
+    )!;
+    final rim = (isDark ? cs.onPrimary : Colors.white).withValues(
+      alpha: isDark ? 0.18 : 0.28,
+    );
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {},
+        onTap: feature.onTap,
         borderRadius: BorderRadius.circular(14),
         splashColor: feature.gradientEnd.withValues(alpha: 0.12),
         highlightColor: feature.gradientEnd.withValues(alpha: 0.06),
@@ -731,20 +944,20 @@ class _ProFeatureTile extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color.lerp(feature.gradientStart, Colors.white, 0.08)!,
+                      highlight,
                       feature.gradientEnd,
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: shadowColor.withValues(alpha: 0.38),
+                      color: shadowColor.withValues(alpha: isDark ? 0.5 : 0.38),
                       blurRadius: 14,
                       offset: const Offset(0, 8),
                       spreadRadius: -2,
                     ),
                   ],
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.28),
+                    color: rim,
                     width: 1,
                   ),
                 ),
@@ -799,7 +1012,7 @@ class _ProFeatureTile extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   height: 1.2,
                   letterSpacing: 0.15,
-                  color: Colors.grey.shade900,
+                  color: cs.onSurface,
                 ),
               ),
             ],
@@ -809,3 +1022,57 @@ class _ProFeatureTile extends StatelessWidget {
     );
   }
 }
+
+class _UserAvatar extends StatelessWidget {
+  final UserData? user;
+
+  const _UserAvatar({this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    if (user?.photoUrl != null) {
+      return ClipOval(
+        child: Image.network(
+          user!.photoUrl!,
+          width: 52,
+          height: 52,
+          fit: BoxFit.cover,
+          errorBuilder: (ctx, err, st) => _defaultAvatar(),
+        ),
+      );
+    }
+    if (user != null && user!.name.isNotEmpty) {
+      return Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.25),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          user!.name[0].toUpperCase(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
+    }
+    return _defaultAvatar();
+  }
+
+  Widget _defaultAvatar() {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.person, color: Colors.white, size: 28),
+    );
+  }
+}
+
