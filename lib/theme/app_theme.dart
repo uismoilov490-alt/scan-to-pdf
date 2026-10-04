@@ -5,51 +5,62 @@ abstract final class AppTheme {
   static const Color _seed = Color(0xFF1565C0);
 
   static ThemeData light() {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: _seed,
-      brightness: Brightness.light,
-    ).copyWith(
-      surface: const Color(0xFFF5F7FA),
-      surfaceContainerLowest: const Color(0xFFF0F3F8),
-      surfaceContainerLow: const Color(0xFFF7F8FC),
-      surfaceContainer: const Color(0xFFFFFFFF),
-      surfaceContainerHigh: const Color(0xFFEEF1F7),
-      surfaceContainerHighest: const Color(0xFFE4E9F2),
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: _seed,
+          brightness: Brightness.light,
+        ).copyWith(
+          // Dizayn (Home/Menu/Subscription.pdf): ko'k aksent, och kulrang fon, oq kartalar
+          primary: const Color(0xFF0A84FF),
+          onPrimary: Colors.white,
+          primaryContainer: const Color(0xFFE6F1FF),
+          onPrimaryContainer: const Color(0xFF0A5BC4),
+          surface: const Color(0xFFF5F5F7),
+          onSurface: const Color(0xFF1C1C1E),
+          onSurfaceVariant: const Color(0xFF8A8A8E),
+          outline: const Color(0xFFC7C7CC),
+          outlineVariant: const Color(0xFFE5E5EA),
+          surfaceContainerLowest: const Color(0xFFF5F5F7),
+          surfaceContainerLow: const Color(0xFFFFFFFF),
+          surfaceContainer: const Color(0xFFFFFFFF),
+          surfaceContainerHigh: const Color(0xFFF0F0F3),
+          surfaceContainerHighest: const Color(0xFFE5E5EA),
+        );
     return _buildTheme(brightness: Brightness.light, colorScheme: scheme);
   }
 
   static ThemeData dark() {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: _seed,
-      brightness: Brightness.dark,
-    ).copyWith(
-      surface: const Color(0xFF0F1419),
-      surfaceContainerLowest: const Color(0xFF0A0D12),
-      surfaceContainerLow: const Color(0xFF131920),
-      surfaceContainer: const Color(0xFF181F28),
-      surfaceContainerHigh: const Color(0xFF212A35),
-      surfaceContainerHighest: const Color(0xFF2A3442),
-      onSurface: const Color(0xFFE8EDF4),
-      onSurfaceVariant: const Color(0xFFB0BBC9),
-      outline: const Color(0xFF3D4C5F),
-      outlineVariant: const Color(0xFF2A3544),
-      // Primary / onPrimary tuned for light icons on saturated blue (AppBar, FAB).
-      primary: const Color(0xFF5B9CF5),
-      onPrimary: const Color(0xFFFFFFFF),
-      primaryContainer: const Color(0xFF1E4272),
-      onPrimaryContainer: const Color(0xFFD4E4FF),
-      secondary: const Color(0xFF9ECAFF),
-      onSecondary: const Color(0xFF001634),
-      error: const Color(0xFFFFB4AB),
-      onError: const Color(0xFF690005),
-      errorContainer: const Color(0xFF93000A),
-      onErrorContainer: const Color(0xFFFFDAD6),
-      inverseSurface: const Color(0xFFE8EDF4),
-      onInverseSurface: const Color(0xFF0F1419),
-      shadow: Colors.black,
-      scrim: const Color(0xCC000000),
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: _seed,
+          brightness: Brightness.dark,
+        ).copyWith(
+          surface: const Color(0xFF0F1419),
+          surfaceContainerLowest: const Color(0xFF0A0D12),
+          surfaceContainerLow: const Color(0xFF131920),
+          surfaceContainer: const Color(0xFF181F28),
+          surfaceContainerHigh: const Color(0xFF212A35),
+          surfaceContainerHighest: const Color(0xFF2A3442),
+          onSurface: const Color(0xFFE8EDF4),
+          onSurfaceVariant: const Color(0xFFB0BBC9),
+          outline: const Color(0xFF3D4C5F),
+          outlineVariant: const Color(0xFF2A3544),
+          // Primary / onPrimary tuned for light icons on saturated blue (AppBar, FAB).
+          primary: const Color(0xFF5B9CF5),
+          onPrimary: const Color(0xFFFFFFFF),
+          primaryContainer: const Color(0xFF1E4272),
+          onPrimaryContainer: const Color(0xFFD4E4FF),
+          secondary: const Color(0xFF9ECAFF),
+          onSecondary: const Color(0xFF001634),
+          error: const Color(0xFFFFB4AB),
+          onError: const Color(0xFF690005),
+          errorContainer: const Color(0xFF93000A),
+          onErrorContainer: const Color(0xFFFFDAD6),
+          inverseSurface: const Color(0xFFE8EDF4),
+          onInverseSurface: const Color(0xFF0F1419),
+          shadow: Colors.black,
+          scrim: const Color(0xCC000000),
+        );
     return _buildTheme(brightness: Brightness.dark, colorScheme: scheme);
   }
 
@@ -73,7 +84,7 @@ abstract final class AppTheme {
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: isDark ? 2 : 1,
-        backgroundColor: colorScheme.surfaceContainerLow,
+        backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
         surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: colorScheme.onSurface),
@@ -87,9 +98,7 @@ abstract final class AppTheme {
         color: colorScheme.surfaceContainerLow,
         elevation: isDark ? 0 : 1,
         shadowColor: isDark ? Colors.transparent : const Color(0x33000000),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         margin: EdgeInsets.zero,
       ),
       drawerTheme: DrawerThemeData(
@@ -99,9 +108,7 @@ abstract final class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: colorScheme.surfaceContainerHigh,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colorScheme.surfaceContainer,
@@ -118,9 +125,7 @@ abstract final class AppTheme {
           color: colorScheme.onInverseSurface,
           fontWeight: FontWeight.w500,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colorScheme.primary,
@@ -184,9 +189,7 @@ abstract final class AppTheme {
         secondarySelectedColor: colorScheme.secondaryContainer,
         labelStyle: TextStyle(color: colorScheme.onSurface),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
@@ -217,11 +220,7 @@ abstract final class AppTheme {
         Color.lerp(cs.surface, cs.surfaceContainerLow, 0.5)!,
       ];
     }
-    return const [
-      Color(0xFFEEF3FB),
-      Color(0xFFF7F9FD),
-      Color(0xFFFFFFFF),
-    ];
+    return const [Color(0xFFEEF3FB), Color(0xFFF7F9FD), Color(0xFFFFFFFF)];
   }
 
   /// Standard “tool” screen scaffold tone (PDF tools, scanner, etc.).

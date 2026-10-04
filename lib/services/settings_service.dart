@@ -10,8 +10,8 @@ abstract final class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     return switch (prefs.getString(_themeModeKey) ?? 'system') {
       'light' => ThemeMode.light,
-      'dark'  => ThemeMode.dark,
-      _       => ThemeMode.system,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
     };
   }
 

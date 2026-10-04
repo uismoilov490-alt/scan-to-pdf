@@ -10,12 +10,19 @@ import '../services/pdf_service.dart';
 
 class PreviewScreen extends StatefulWidget {
   final List<File> pages;
+
   /// Skaner kontrast filtri; ML Kit skaneri rasmni o'zi tozalagan bo'lsa — false
   final bool enhance;
+
   /// Sahifalarni skaner sifatiga keltirish (soya/dog' tozalash) avtomatik yoqiladi
   final bool autoClean;
 
-  const PreviewScreen({super.key, required this.pages, this.enhance = true, this.autoClean = false});
+  const PreviewScreen({
+    super.key,
+    required this.pages,
+    this.enhance = true,
+    this.autoClean = false,
+  });
 
   @override
   State<PreviewScreen> createState() => _PreviewScreenState();
@@ -82,13 +89,20 @@ class _PreviewScreenState extends State<PreviewScreen> {
     final mode = _clean;
     if (mode == null) return null;
     if (_cleaned.containsKey(index)) return _cleaned[index];
-    final out = await DocumentCleaner.clean(await widget.pages[index].readAsBytes(), mode: mode, crop: false);
+    final out = await DocumentCleaner.clean(
+      await widget.pages[index].readAsBytes(),
+      mode: mode,
+      crop: false,
+    );
     if (out != null && mode == _clean) _cleaned[index] = out;
     return out;
   }
 
   void _ensureCleaned(int index) {
-    if (_clean == null || _cleaned.containsKey(index) || _cleaning.contains(index)) return;
+    if (_clean == null ||
+        _cleaned.containsKey(index) ||
+        _cleaning.contains(index))
+      return;
     _cleaning.add(index);
     _cleanPage(index).whenComplete(() {
       _cleaning.remove(index);
@@ -114,7 +128,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
         files.add(widget.pages[i]);
         continue;
       }
-      final f = File('${tmp.path}/preview_clean_${DateTime.now().microsecondsSinceEpoch}_$i.jpg');
+      final f = File(
+        '${tmp.path}/preview_clean_${DateTime.now().microsecondsSinceEpoch}_$i.jpg',
+      );
       await f.writeAsBytes(bytes);
       files.add(f);
     }
@@ -192,8 +208,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
         title: Text(
           'pages_count'.tr(
             namedArgs: {'count': widget.pages.length.toString()},
@@ -232,10 +246,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         ),
                         child: Text(
                           '${index + 1} / ${widget.pages.length}',
-                          style: TextStyle(
-                            color: cs.onPrimary,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: cs.onPrimary, fontSize: 13),
                         ),
                       ),
                       Positioned(
@@ -264,14 +275,28 @@ class _PreviewScreenState extends State<PreviewScreen> {
               children: [
                 SegmentedButton<CleanMode?>(
                   segments: [
-                    ButtonSegment(value: null, label: Text('clean_mode_original'.tr())),
-                    ButtonSegment(value: CleanMode.color, label: Text('clean_mode_color'.tr())),
-                    ButtonSegment(value: CleanMode.gray, label: Text('clean_mode_gray'.tr())),
-                    ButtonSegment(value: CleanMode.bw, label: Text('clean_mode_bw'.tr())),
+                    ButtonSegment(
+                      value: null,
+                      label: Text('clean_mode_original'.tr()),
+                    ),
+                    ButtonSegment(
+                      value: CleanMode.color,
+                      label: Text('clean_mode_color'.tr()),
+                    ),
+                    ButtonSegment(
+                      value: CleanMode.gray,
+                      label: Text('clean_mode_gray'.tr()),
+                    ),
+                    ButtonSegment(
+                      value: CleanMode.bw,
+                      label: Text('clean_mode_bw'.tr()),
+                    ),
                   ],
                   selected: {_clean},
                   showSelectedIcon: false,
-                  onSelectionChanged: _generating ? null : (sel) => _setClean(sel.first),
+                  onSelectionChanged: _generating
+                      ? null
+                      : (sel) => _setClean(sel.first),
                 ),
                 const SizedBox(height: 14),
                 Text(
@@ -303,7 +328,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           )
-                        : (_aiNamed ? Icon(Icons.auto_awesome, color: cs.primary) : null),
+                        : (_aiNamed
+                              ? Icon(Icons.auto_awesome, color: cs.primary)
+                              : null),
                     suffixText: '.pdf',
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,

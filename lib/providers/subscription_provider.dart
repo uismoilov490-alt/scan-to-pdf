@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../services/ai_service.dart';
 import '../services/subscription_service.dart';
+import '../services/ad_service.dart';
 
 class SubscriptionProvider extends ChangeNotifier {
   final _iap = InAppPurchase.instance;
@@ -11,6 +12,8 @@ class SubscriptionProvider extends ChangeNotifier {
   StreamSubscription<User?>? _authSub;
 
   bool _isPro = false;
+  String _plan = 'free';
+  DateTime? _proUntil;
   AiQuota? _quota;
   bool _loadingProducts = true;
   bool _purchasing = false;
@@ -19,6 +22,11 @@ class SubscriptionProvider extends ChangeNotifier {
   List<ProductDetails> _products = [];
 
   bool get isPro => _isPro;
+
+  /// free | monthly (server ma'lumoti)
+  String get plan => _plan;
+  DateTime? get proUntil => _proUntil;
+  bool get signedIn => FirebaseAuth.instance.currentUser != null;
 
   /// Bugungi AI limiti (server ma'lumoti; tizimga kirilmagan bo'lsa null).
   AiQuota? get quota => _quota;
@@ -32,16 +40,15 @@ class SubscriptionProvider extends ChangeNotifier {
       .where((p) => p.id == SubscriptionService.proMonthlyId)
       .firstOrNull;
 
-  ProductDetails? get yearlyProduct => _products
-      .where((p) => p.id == SubscriptionService.proYearlyId)
-      .firstOrNull;
-
   Future<void> initialize() async {
     _isPro = await SubscriptionService.getIsProStored();
+    AdService.setPro(_isPro);
     notifyListeners();
 
     // Pro holatining asosiy manbai — server (obuna tugasa u o'chiradi).
-    _authSub = FirebaseAuth.instance.authStateChanges().listen((_) => refreshAccount());
+    _authSub = FirebaseAuth.instance.authStateChanges().listen(
+      (_) => refreshAccount(),
+    );
 
     _storeAvailable = await _iap.isAvailable();
     if (!_storeAvailable) {
@@ -66,6 +73,10 @@ class SubscriptionProvider extends ChangeNotifier {
   Future<void> refreshAccount() async {
     if (FirebaseAuth.instance.currentUser == null) {
       _quota = null;
+      _isPro = false;
+      _plan = 'free';
+      _proUntil = null;
+      AdService.setPro(false);
       notifyListeners();
       return;
     }
@@ -85,27 +96,27 @@ class SubscriptionProvider extends ChangeNotifier {
 
   void _applyAccount(AiAccount account) {
     _isPro = account.pro;
+    _plan = account.plan;
+    _proUntil = account.proUntil;
     _quota = account.quota;
     SubscriptionService.storeProStatus(isPro: account.pro);
+    AdService.setPro(account.pro);
     notifyListeners();
   }
 
+  /// Pro holatini faqat server beradi (xaridni Google Play orqali tekshiradi) —
+  /// ilovaning o'zi Pro yoqmaydi, aks holda soxta xarid bilan aldash mumkin.
+  /// Hisobga kirilmagan bo'lsa xarid keyin "Xaridlarni tiklash" bilan bog'lanadi.
   Future<void> _verifyWithServer(PurchaseDetails purchase) async {
     try {
-      _applyAccount(await AiService.verifyPurchase(
-        productId: purchase.productID,
-        purchaseToken: purchase.verificationData.serverVerificationData,
-      ));
+      _applyAccount(
+        await AiService.verifyPurchase(
+          productId: purchase.productID,
+          purchaseToken: purchase.verificationData.serverVerificationData,
+        ),
+      );
     } on AiException catch (e) {
-      // Server tekshiruvi hali sozlanmagan yoki tarmoq yo'q — Google Play
-      // xaridni tasdiqlagan, shuning uchun ilovada Pro ko'rsatamiz.
-      if (e.code == 'BILLING_NOT_CONFIGURED' || e.code == 'NETWORK' || e.needsLogin) {
-        _isPro = true;
-        await SubscriptionService.storeProStatus(
-          isPro: true,
-          purchaseId: purchase.purchaseID,
-        );
-      }
+      if (e.needsLogin) _error = 'sub_login_to_link';
     }
   }
 

@@ -34,9 +34,16 @@ function createApp({ config, db, ai, verifyToken }) {
     return { imageBase64: image, mediaType };
   }
 
+  // Ko'p sahifali fayl bir nechta so'rovda yuboriladi — ilova ularni bitta fileId
+  // bilan bog'laydi (bepul rejada fayllar soni shu bo'yicha sanaladi).
+  function readFileId(body) {
+    const id = body?.fileId;
+    return typeof id === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(id) ? id : null;
+  }
+
   function me(uid) {
-    const { pro, proUntil } = billing.proStatus(uid);
-    return { pro, proUntil, quota: quota.status(uid, pro) };
+    const sub = billing.proStatus(uid);
+    return { pro: sub.pro, plan: sub.plan, proUntil: sub.proUntil, quota: quota.status(uid, sub) };
   }
 
   const app = express();
@@ -60,7 +67,7 @@ function createApp({ config, db, ai, verifyToken }) {
   // Hisobni o'chirish: serverdagi barcha yozuvlar o'chadi
   // (Firebase foydalanuvchisini ilovaning o'zi o'chiradi).
   v1.delete('/me', auth, (req, res) => {
-    for (const table of ['usage_daily', 'subscriptions', 'ai_calls']) {
+    for (const table of ['usage_daily', 'usage_log', 'free_files', 'subscriptions', 'ai_calls']) {
       db.prepare(`DELETE FROM ${table} WHERE uid = ?`).run(req.uid);
     }
     res.json({ ok: true });
@@ -70,8 +77,9 @@ function createApp({ config, db, ai, verifyToken }) {
     try {
       const img = readImage(req.body);
       const hint = typeof req.body.hint === 'string' ? req.body.hint : 'auto';
-      const { pro } = billing.proStatus(req.uid);
-      quota.assertUnits(req.uid, pro, 1);
+      const fileId = readFileId(req.body);
+      const sub = billing.proStatus(req.uid);
+      quota.assertUnits(req.uid, sub, 1, fileId);
 
       let result;
       try {
@@ -80,13 +88,13 @@ function createApp({ config, db, ai, verifyToken }) {
         logCall.run(req.uid, 'ocr', config.ocrModel, null, null, 0, Date.now());
         throw err;
       }
-      quota.add(req.uid, 'units', 1);
+      quota.charge(req.uid, sub, 1, fileId);
       logCall.run(
         req.uid, 'ocr', result.model,
         result.usage?.input_tokens ?? null, result.usage?.output_tokens ?? null,
         1, Date.now(),
       );
-      res.json({ text: result.text, quota: quota.status(req.uid, pro) });
+      res.json({ text: result.text, quota: quota.status(req.uid, sub) });
     } catch (err) {
       next(err);
     }
@@ -99,7 +107,7 @@ function createApp({ config, db, ai, verifyToken }) {
       quota.assertNameCap(req.uid);
 
       const result = await ai.suggestName({ ...img, lang });
-      quota.add(req.uid, 'name', 1);
+      quota.addName(req.uid);
       logCall.run(
         req.uid, 'name', result.model,
         result.usage?.input_tokens ?? null, result.usage?.output_tokens ?? null,
@@ -137,8 +145,9 @@ function createApp({ config, db, ai, verifyToken }) {
         units = Math.ceil(clean.length / config.translateCharsPerUnit);
       }
 
-      const { pro } = billing.proStatus(req.uid);
-      quota.assertUnits(req.uid, pro, units);
+      const fileId = readFileId(req.body);
+      const sub = billing.proStatus(req.uid);
+      quota.assertUnits(req.uid, sub, units, fileId);
 
       let result;
       try {
@@ -151,7 +160,7 @@ function createApp({ config, db, ai, verifyToken }) {
         logCall.run(req.uid, 'translate', config.translateModel, null, null, 0, Date.now());
         throw err;
       }
-      quota.add(req.uid, 'units', units);
+      quota.charge(req.uid, sub, units, fileId);
       logCall.run(
         req.uid, 'translate', result.model,
         result.usage?.input_tokens ?? null, result.usage?.output_tokens ?? null,
@@ -160,7 +169,7 @@ function createApp({ config, db, ai, verifyToken }) {
       res.json({
         translation: result.translation,
         detected: LANGUAGES[result.detected] ? result.detected : null,
-        quota: quota.status(req.uid, pro),
+        quota: quota.status(req.uid, sub),
       });
     } catch (err) {
       next(err);

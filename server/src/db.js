@@ -29,6 +29,26 @@ function openDb(dbPath) {
     );
     CREATE INDEX IF NOT EXISTS subscriptions_uid ON subscriptions(uid);
 
+    -- AI sarfi (sahifa birliklarida): Pro davr limiti shundan hisoblanadi
+    CREATE TABLE IF NOT EXISTS usage_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      uid        TEXT NOT NULL,
+      units      INTEGER NOT NULL,
+      file_id    TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS usage_log_uid ON usage_log(uid, created_at);
+
+    -- Bepul rejada AI bilan ishlangan fayllar (kuniga N ta; day — boshlangan kun)
+    CREATE TABLE IF NOT EXISTS free_files (
+      uid        TEXT NOT NULL,
+      file_id    TEXT NOT NULL,
+      day        TEXT NOT NULL,
+      units      INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (uid, file_id)
+    );
+
     CREATE TABLE IF NOT EXISTS ai_calls (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       uid           TEXT NOT NULL,

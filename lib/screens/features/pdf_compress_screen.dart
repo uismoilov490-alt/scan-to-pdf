@@ -11,6 +11,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfx/pdfx.dart';
 import '../../services/pdf_service.dart';
 import '../../widgets/pdf_source_sheet.dart';
+import '../../services/ad_service.dart';
 
 class PdfCompressScreen extends StatefulWidget {
   const PdfCompressScreen({super.key});
@@ -108,10 +109,8 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
         pdf.addPage(
           pw.Page(
             pageFormat: PdfPageFormat(pageW, pageH),
-            build: (_) => pw.Image(
-              pw.MemoryImage(compressed),
-              fit: pw.BoxFit.fill,
-            ),
+            build: (_) =>
+                pw.Image(pw.MemoryImage(compressed), fit: pw.BoxFit.fill),
           ),
         );
       }
@@ -121,8 +120,10 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
       final saveDir = Directory('${docsDir.path}/scan_to_pdf');
       if (!await saveDir.exists()) await saveDir.create(recursive: true);
 
-      final baseName =
-          _selectedPdf!.path.split('/').last.replaceAll('.pdf', '');
+      final baseName = _selectedPdf!.path
+          .split('/')
+          .last
+          .replaceAll('.pdf', '');
       final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final bytes = await pdf.save();
 
@@ -138,6 +139,7 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
 
       final outFile = File('${saveDir.path}/${baseName}_siqilgan_$now.pdf');
       await outFile.writeAsBytes(bytes);
+      AdService.recordSave();
 
       setState(() {
         _compressedSize = bytes.length;
@@ -149,7 +151,9 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('saved_as'.tr(namedArgs: {'name': outFile.path.split('/').last})),
+            content: Text(
+              'saved_as'.tr(namedArgs: {'name': outFile.path.split('/').last}),
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -159,7 +163,9 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
         setState(() => _compressing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('error_prefix'.tr(namedArgs: {'message': e.toString()})),
+            content: Text(
+              'error_prefix'.tr(namedArgs: {'message': e.toString()}),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -178,11 +184,7 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-        title: Text('compress_title'.tr()),
-      ),
+      appBar: AppBar(title: Text('compress_title'.tr())),
       body: _loadingPdfs
           ? const Center(child: CircularProgressIndicator())
           : _buildBody(theme),
@@ -233,7 +235,9 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
                           : '—',
                       color: theme.colorScheme.primary,
                     ),
-                    if (_compressedSize != null && _originalSize != null && _compressedSize! < _originalSize!) ...[
+                    if (_compressedSize != null &&
+                        _originalSize != null &&
+                        _compressedSize! < _originalSize!) ...[
                       Icon(
                         Icons.arrow_forward_rounded,
                         color: theme.colorScheme.onSurfaceVariant,
@@ -319,7 +323,11 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
                       ),
                     )
                   : const Icon(Icons.compress),
-              label: Text(_compressing ? 'compress_compressing'.tr() : 'compress_btn'.tr()),
+              label: Text(
+                _compressing
+                    ? 'compress_compressing'.tr()
+                    : 'compress_btn'.tr(),
+              ),
               style: FilledButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
               ),
@@ -329,7 +337,10 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
               Card(
                 color: theme.colorScheme.secondaryContainer,
                 child: ListTile(
-                  leading: Icon(Icons.info_outline, color: theme.colorScheme.onSecondaryContainer),
+                  leading: Icon(
+                    Icons.info_outline,
+                    color: theme.colorScheme.onSecondaryContainer,
+                  ),
                   title: Text('compress_not_smaller_title'.tr()),
                   subtitle: Text('compress_not_smaller_body'.tr()),
                 ),
@@ -366,8 +377,7 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
                   Icon(
                     Icons.folder_zip_outlined,
                     size: 80,
-                    color:
-                        theme.colorScheme.primary.withValues(alpha: 0.35),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.35),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -380,9 +390,7 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
                   ),
                   Text(
                     'compress_empty_hint2'.tr(),
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -418,10 +426,7 @@ class _SizeBadge extends StatelessWidget {
             color: color,
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(color: muted, fontSize: 11),
-        ),
+        Text(label, style: TextStyle(color: muted, fontSize: 11)),
       ],
     );
   }
@@ -490,10 +495,7 @@ class _PickerCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: cs.onSurfaceVariant,
-              ),
+              Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
             ],
           ),
         ),

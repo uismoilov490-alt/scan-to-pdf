@@ -86,6 +86,5 @@ class UserData {
     this.phone,
   });
 
-  String get displayIdentifier =>
-      email.isNotEmpty ? email : (phone ?? '');
+  String get displayIdentifier => email.isNotEmpty ? email : (phone ?? '');
 }

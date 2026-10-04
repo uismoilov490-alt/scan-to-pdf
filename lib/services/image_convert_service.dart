@@ -5,6 +5,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
+import 'ad_service.dart';
 
 enum ImageFormat { jpg, png }
 
@@ -18,7 +19,11 @@ class ImageConvertService {
     return dir;
   }
 
-  static Future<File> _uniqueFile(Directory dir, String baseName, String ext) async {
+  static Future<File> _uniqueFile(
+    Directory dir,
+    String baseName,
+    String ext,
+  ) async {
     final safe = baseName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
     final name = safe.isEmpty ? 'rasm' : safe;
     var counter = 0;
@@ -50,6 +55,7 @@ class ImageConvertService {
       }
       onProgress?.call(i + 1, inputs.length);
     }
+    if (results.isNotEmpty) AdService.recordSave();
     return results;
   }
 
@@ -75,7 +81,11 @@ class ImageConvertService {
             quality: 92,
           );
           if (rendered != null) {
-            final out = await _uniqueFile(dir, total == 1 ? base : '${base}_$i', 'jpg');
+            final out = await _uniqueFile(
+              dir,
+              total == 1 ? base : '${base}_$i',
+              'jpg',
+            );
             await out.writeAsBytes(rendered.bytes);
             results.add(out);
           }
@@ -87,6 +97,7 @@ class ImageConvertService {
     } finally {
       await document.close();
     }
+    if (results.isNotEmpty) AdService.recordSave();
     return results;
   }
 }

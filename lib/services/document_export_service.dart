@@ -10,23 +10,24 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:printing/printing.dart';
 import 'package:xml/xml.dart';
+import 'ad_service.dart';
 
 enum ExportFormat { docx, pdf, jpg, png }
 
 extension ExportFormatExt on ExportFormat {
   String get ext => switch (this) {
-        ExportFormat.docx => 'docx',
-        ExportFormat.pdf => 'pdf',
-        ExportFormat.jpg => 'jpg',
-        ExportFormat.png => 'png',
-      };
+    ExportFormat.docx => 'docx',
+    ExportFormat.pdf => 'pdf',
+    ExportFormat.jpg => 'jpg',
+    ExportFormat.png => 'png',
+  };
 
   String get label => switch (this) {
-        ExportFormat.docx => 'Word',
-        ExportFormat.pdf => 'PDF',
-        ExportFormat.jpg => 'JPG',
-        ExportFormat.png => 'PNG',
-      };
+    ExportFormat.docx => 'Word',
+    ExportFormat.pdf => 'PDF',
+    ExportFormat.jpg => 'JPG',
+    ExportFormat.png => 'PNG',
+  };
 
   bool get isImage => this == ExportFormat.jpg || this == ExportFormat.png;
 }
@@ -62,17 +63,20 @@ class DocumentExportService {
   /// Oddiy matndan .docx (har qator — alohida xatboshi).
   static Uint8List buildDocx(String text, {bool rtl = false}) {
     final archive = Archive();
-    const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    const contentTypes =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
         '<Default Extension="xml" ContentType="application/xml"/>'
         '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
         '</Types>';
-    const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    const rels =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
         '</Relationships>';
-    const docRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    const docRels =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
         '</Relationships>';
 
@@ -87,7 +91,8 @@ class DocumentExportService {
       return '<w:p>$pPr<w:r>$rPr<w:t xml:space="preserve">$escaped</w:t></w:r></w:p>';
     }).join();
 
-    final docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    final docXml =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
         '<w:body>$paras'
         '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
@@ -123,11 +128,19 @@ class DocumentExportService {
   }
 
   /// Matndan A4 PDF (sahifalarga avtomatik bo'linadi).
-  static Future<Uint8List> buildPdf(String text, {required String langCode}) async {
+  static Future<Uint8List> buildPdf(
+    String text, {
+    required String langCode,
+  }) async {
     final base = await PdfGoogleFonts.notoSansRegular();
     final fallback = await _fallbackFonts(langCode);
     final rtl = _rtlLanguages.contains(langCode);
-    final style = pw.TextStyle(font: base, fontFallback: fallback, fontSize: 12, lineSpacing: 3);
+    final style = pw.TextStyle(
+      font: base,
+      fontFallback: fallback,
+      fontSize: 12,
+      lineSpacing: 3,
+    );
 
     final doc = pw.Document();
     doc.addPage(
@@ -137,10 +150,12 @@ class DocumentExportService {
         textDirection: rtl ? pw.TextDirection.rtl : pw.TextDirection.ltr,
         build: (_) => text
             .split('\n')
-            .map((line) => pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 4),
-                  child: pw.Text(line.isEmpty ? ' ' : line, style: style),
-                ))
+            .map(
+              (line) => pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 4),
+                child: pw.Text(line.isEmpty ? ' ' : line, style: style),
+              ),
+            )
             .toList(),
       ),
     );
@@ -148,7 +163,10 @@ class DocumentExportService {
   }
 
   /// PDF sahifalarini rasmga (har sahifa — alohida fayl).
-  static Future<List<Uint8List>> pdfToImages(Uint8List pdfBytes, ExportFormat format) async {
+  static Future<List<Uint8List>> pdfToImages(
+    Uint8List pdfBytes,
+    ExportFormat format,
+  ) async {
     final document = await pdfx.PdfDocument.openData(pdfBytes);
     final images = <Uint8List>[];
     try {
@@ -158,7 +176,9 @@ class DocumentExportService {
           final rendered = await page.render(
             width: page.width * 2,
             height: page.height * 2,
-            format: format == ExportFormat.png ? pdfx.PdfPageImageFormat.png : pdfx.PdfPageImageFormat.jpeg,
+            format: format == ExportFormat.png
+                ? pdfx.PdfPageImageFormat.png
+                : pdfx.PdfPageImageFormat.jpeg,
             backgroundColor: '#ffffff',
             quality: 92,
           );
@@ -180,6 +200,7 @@ class DocumentExportService {
     required String baseName,
     required String langCode,
   }) async {
+    AdService.recordSave();
     final dir = await _outputDir();
     final rtl = _rtlLanguages.contains(langCode);
     if (format == ExportFormat.docx) {
@@ -205,12 +226,19 @@ class DocumentExportService {
     return dir;
   }
 
-  static Future<File> _write(Directory dir, String baseName, String ext, List<int> bytes) async {
+  static Future<File> _write(
+    Directory dir,
+    String baseName,
+    String ext,
+    List<int> bytes,
+  ) async {
     final safe = baseName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
     var counter = 0;
     while (true) {
       final suffix = counter == 0 ? '' : '_$counter';
-      final file = File(p.join(dir.path, '${safe.isEmpty ? 'tarjima' : safe}$suffix.$ext'));
+      final file = File(
+        p.join(dir.path, '${safe.isEmpty ? 'tarjima' : safe}$suffix.$ext'),
+      );
       if (!await file.exists()) {
         await file.writeAsBytes(bytes);
         return file;

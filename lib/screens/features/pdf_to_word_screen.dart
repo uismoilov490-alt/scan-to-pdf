@@ -9,6 +9,7 @@ import 'package:pdfx/pdfx.dart';
 import '../../services/document_export_service.dart';
 import '../../services/pdf_service.dart';
 import '../../widgets/pdf_source_sheet.dart';
+import '../../services/ad_service.dart';
 
 class PdfToWordScreen extends StatefulWidget {
   const PdfToWordScreen({super.key});
@@ -59,9 +60,9 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
     final result = await OpenFilex.open(_outputPath!);
     if (result.type != ResultType.done && mounted) {
       // Telefonda Word ochadigan ilova yo'q bo'lsa — ulashish orqali yuborish mumkin
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('no_app_to_open'.tr())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('no_app_to_open'.tr())));
     }
   }
 
@@ -79,8 +80,9 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
       final pageCount = document.pagesCount;
       setState(() => _totalPages = pageCount);
 
-      final textRecognizer =
-          TextRecognizer(script: TextRecognitionScript.latin);
+      final textRecognizer = TextRecognizer(
+        script: TextRecognitionScript.latin,
+      );
       final pageTexts = <String>[];
 
       for (int i = 1; i <= pageCount; i++) {
@@ -100,12 +102,14 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
         await page.close();
 
         if (rendered != null) {
-          final imgFile =
-              File('${tempDir.path}/ocr_p${i}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          final imgFile = File(
+            '${tempDir.path}/ocr_p${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
           await imgFile.writeAsBytes(rendered.bytes);
 
-          final recognized =
-              await textRecognizer.processImage(InputImage.fromFile(imgFile));
+          final recognized = await textRecognizer.processImage(
+            InputImage.fromFile(imgFile),
+          );
           if (recognized.text.isNotEmpty) {
             pageTexts.add(
               '--- ${'edit_page_label'.tr(namedArgs: {'number': '$i'})} ---\n${recognized.text}',
@@ -124,8 +128,7 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
 
       if (mounted) {
         setState(() {
-          _extractedText =
-              fullText.isEmpty ? 'ocr_no_text'.tr() : fullText;
+          _extractedText = fullText.isEmpty ? 'ocr_no_text'.tr() : fullText;
           _outputPath = outFile.path;
           _progress = 1.0;
           _converting = false;
@@ -133,7 +136,9 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'word_saved'.tr(namedArgs: {'name': outFile.path.split('/').last}),
+              'word_saved'.tr(
+                namedArgs: {'name': outFile.path.split('/').last},
+              ),
             ),
             behavior: SnackBarBehavior.floating,
           ),
@@ -164,11 +169,11 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
     final saveDir = Directory('${docsDir.path}/scan_to_pdf');
     if (!await saveDir.exists()) await saveDir.create(recursive: true);
 
-    final baseName =
-        _selectedPdf!.path.split('/').last.replaceAll('.pdf', '');
+    final baseName = _selectedPdf!.path.split('/').last.replaceAll('.pdf', '');
     final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final outFile = File('${saveDir.path}/${baseName}_$now.docx');
     await outFile.writeAsBytes(zipBytes);
+    AdService.recordSave();
 
     return outFile;
   }
@@ -178,11 +183,7 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-        title: Text('pdf_to_word_title'.tr()),
-      ),
+      appBar: AppBar(title: Text('pdf_to_word_title'.tr())),
       body: _loadingPdfs
           ? const Center(child: CircularProgressIndicator())
           : _buildBody(theme),
@@ -321,17 +322,16 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
               ),
             ],
           ],
-          if (_selectedPdf != null && !_converting && _extractedText == null) ...[
+          if (_selectedPdf != null &&
+              !_converting &&
+              _extractedText == null) ...[
             const SizedBox(height: 16),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: theme.colorScheme.primary,
-                    ),
+                    Icon(Icons.info_outline, color: theme.colorScheme.primary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -393,9 +393,7 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
                   ),
                   Text(
                     'pdf_to_word_empty_hint2'.tr(),
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),

@@ -9,9 +9,7 @@ import 'subscription_sheet.dart';
 /// login kerak → kirish oynasi, limit tugadi → Pro taklifi, qolgani → xabar.
 Future<void> showAiError(BuildContext context, Object error) async {
   if (!context.mounted) return;
-  final e = error is AiException
-      ? error
-      : const AiException('UNKNOWN', '');
+  final e = error is AiException ? error : const AiException('UNKNOWN', '');
 
   if (e.needsLogin) {
     final go = await showDialog<bool>(
@@ -42,14 +40,35 @@ Future<void> showAiError(BuildContext context, Object error) async {
   }
 
   if (e.quotaExceeded) {
+    final q = e.quota;
+    final (String title, String body) = switch ((e.code, q?.perFile ?? true)) {
+      // Limit raqamlari foydalanuvchiga ko'rsatilmaydi
+      ('FILE_TOO_BIG', _) => (
+        'ai_file_big_title'.tr(),
+        'ai_file_big_body'.tr(),
+      ),
+      (_, true) => ('ai_free_over_title'.tr(), 'ai_free_over_body'.tr()),
+      _ => (
+        'ai_plan_over_title'.tr(),
+        (e.needed != null && (q?.remaining ?? 0) > 0
+                ? 'ai_plan_short_body'
+                : 'ai_plan_over_body')
+            .tr(
+              namedArgs: {
+                'date': q?.resetsAt != null
+                    ? DateFormat('dd.MM.yyyy').format(q!.resetsAt!)
+                    : '—',
+              },
+            ),
+      ),
+    };
+    final isPro = q != null && !q.perFile;
     final upgrade = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.hourglass_bottom),
-        title: Text('ai_quota_title'.tr()),
-        content: Text('ai_quota_body'.tr(
-          namedArgs: {'limit': '${e.quota?.limit ?? ''}'},
-        )),
+        title: Text(title),
+        content: Text(body),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -57,7 +76,7 @@ Future<void> showAiError(BuildContext context, Object error) async {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('ai_upgrade_btn'.tr()),
+            child: Text((isPro ? 'ai_see_plans_btn' : 'ai_upgrade_btn').tr()),
           ),
         ],
       ),

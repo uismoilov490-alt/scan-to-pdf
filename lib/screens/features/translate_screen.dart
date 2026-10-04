@@ -18,6 +18,7 @@ import '../../services/ai_service.dart';
 import '../../services/document_export_service.dart';
 import '../../widgets/ai_error.dart';
 import '../../widgets/language_picker_sheet.dart';
+import '../../widgets/ai_badge.dart';
 
 enum _InputKind { docx, pdf, image }
 
@@ -47,6 +48,8 @@ class _TranslateScreenState extends State<TranslateScreen> {
   int _steps = 0;
   String? _text; // tarjima qilingan matn
   String? _detected;
+  // Faylning barcha bo'laklari/sahifalari bitta fayl sifatida sanaladi
+  String? _fileId;
   List<File> _outputs = [];
 
   @override
@@ -58,7 +61,11 @@ class _TranslateScreenState extends State<TranslateScreen> {
   Future<void> _loadLanguages() async {
     final prefs = await SharedPreferences.getInstance();
     final locale = mounted ? context.locale.languageCode : 'uz';
-    final fallbackTarget = locale == 'ru' ? 'ru' : locale == 'en' ? 'en' : 'uz';
+    final fallbackTarget = locale == 'ru'
+        ? 'ru'
+        : locale == 'en'
+        ? 'en'
+        : 'uz';
     if (!mounted) return;
     setState(() {
       _source = prefs.getString(_kSource) ?? TranslateLanguage.auto;
@@ -78,7 +85,11 @@ class _TranslateScreenState extends State<TranslateScreen> {
   }
 
   Future<void> _chooseSource() async {
-    final code = await pickTranslateLanguage(context, selected: _source, allowAuto: true);
+    final code = await pickTranslateLanguage(
+      context,
+      selected: _source,
+      allowAuto: true,
+    );
     if (code == null) return;
     setState(() => _source = code);
     _saveLanguages();
@@ -92,7 +103,9 @@ class _TranslateScreenState extends State<TranslateScreen> {
   }
 
   void _swap() {
-    final newTarget = _source == TranslateLanguage.auto ? (_detected ?? 'en') : _source;
+    final newTarget = _source == TranslateLanguage.auto
+        ? (_detected ?? 'en')
+        : _source;
     setState(() {
       _source = _target;
       _target = newTarget;
@@ -132,6 +145,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
 
   Future<void> _translate() async {
     final subs = context.read<SubscriptionProvider>();
+    _fileId = AiService.newFileId();
     setState(() {
       _busy = true;
       _text = null;
@@ -144,7 +158,10 @@ class _TranslateScreenState extends State<TranslateScreen> {
       final text = switch (_kind!) {
         _InputKind.docx => await _translateDocx(subs),
         _InputKind.pdf => await _translatePdf(subs),
-        _InputKind.image => await _translateImage(await _file!.readAsBytes(), subs),
+        _InputKind.image => await _translateImage(
+          await _file!.readAsBytes(),
+          subs,
+        ),
       };
       if (text.trim().isEmpty) {
         _snack('translate_nothing'.tr());
@@ -172,14 +189,20 @@ class _TranslateScreenState extends State<TranslateScreen> {
   }
 
   void _ensureQuota(SubscriptionProvider subs, int units) {
-    final quota = subs.quota;
-    if (quota != null && quota.remaining < units) {
-      throw AiException('QUOTA_EXCEEDED', '', quota: quota);
-    }
+    final error = subs.quota?.check(units);
+    if (error != null) throw error;
   }
 
-  Future<String> _translateImage(Uint8List bytes, SubscriptionProvider subs) async {
-    final r = await AiService.translate(imageBytes: bytes, source: _source, target: _target);
+  Future<String> _translateImage(
+    Uint8List bytes,
+    SubscriptionProvider subs,
+  ) async {
+    final r = await AiService.translate(
+      imageBytes: bytes,
+      source: _source,
+      target: _target,
+      fileId: _fileId,
+    );
     subs.updateQuota(r.quota);
     _detected ??= r.detected;
     return r.translation;
@@ -192,7 +215,8 @@ class _TranslateScreenState extends State<TranslateScreen> {
     final chunks = <String>[];
     var current = StringBuffer();
     for (final para in source.split('\n')) {
-      if (current.length + para.length + 1 > _chunkChars && current.isNotEmpty) {
+      if (current.length + para.length + 1 > _chunkChars &&
+          current.isNotEmpty) {
         chunks.add(current.toString());
         current = StringBuffer();
       }
@@ -207,7 +231,12 @@ class _TranslateScreenState extends State<TranslateScreen> {
     for (var i = 0; i < chunks.length; i++) {
       if (!mounted) break;
       setState(() => _step = i + 1);
-      final r = await AiService.translate(text: chunks[i], source: _source, target: _target);
+      final r = await AiService.translate(
+        text: chunks[i],
+        source: _source,
+        target: _target,
+        fileId: _fileId,
+      );
       subs.updateQuota(r.quota);
       _detected ??= r.detected;
       out.add(r.translation);
@@ -264,42 +293,51 @@ class _TranslateScreenState extends State<TranslateScreen> {
   }
 
   IconData get _fileIcon => switch (_kind) {
-        _InputKind.docx => Icons.description_rounded,
-        _InputKind.pdf => Icons.picture_as_pdf_rounded,
-        _InputKind.image => Icons.image_rounded,
-        null => Icons.upload_file_rounded,
-      };
+    _InputKind.docx => Icons.description_rounded,
+    _InputKind.pdf => Icons.picture_as_pdf_rounded,
+    _InputKind.image => Icons.image_rounded,
+    null => Icons.upload_file_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final quota = context.watch<SubscriptionProvider>().quota;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: cs.primary,
-        foregroundColor: cs.onPrimary,
-        title: Text('feature_translate'.tr()),
-      ),
+      appBar: AppBar(title: AiTitle('feature_translate'.tr())),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           // ── Tillar ──────────────────────────────────────────────────
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Row(
                 children: [
-                  Expanded(child: _LangButton(label: 'translate_from'.tr(), value: _langName(_source), onTap: _busy ? null : _chooseSource)),
+                  Expanded(
+                    child: _LangButton(
+                      label: 'translate_from'.tr(),
+                      value: _langName(_source),
+                      onTap: _busy ? null : _chooseSource,
+                    ),
+                  ),
                   IconButton.filledTonal(
                     onPressed: _busy ? null : _swap,
                     icon: const Icon(Icons.swap_horiz_rounded),
                     tooltip: 'translate_swap'.tr(),
                   ),
-                  Expanded(child: _LangButton(label: 'translate_to'.tr(), value: _langName(_target), onTap: _busy ? null : _chooseTarget)),
+                  Expanded(
+                    child: _LangButton(
+                      label: 'translate_to'.tr(),
+                      value: _langName(_target),
+                      onTap: _busy ? null : _chooseTarget,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -308,21 +346,32 @@ class _TranslateScreenState extends State<TranslateScreen> {
 
           // ── Fayl ────────────────────────────────────────────────────
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
               leading: CircleAvatar(
                 radius: 26,
                 backgroundColor: cs.primaryContainer,
                 child: Icon(_fileIcon, color: cs.onPrimaryContainer),
               ),
               title: Text(
-                _file == null ? 'translate_pick_file'.tr() : p.basename(_file!.path),
+                _file == null
+                    ? 'translate_pick_file'.tr()
+                    : p.basename(_file!.path),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              subtitle: Text(_file == null ? 'translate_pick_file_hint'.tr() : 'translate_change_file'.tr()),
+              subtitle: Text(
+                _file == null
+                    ? 'translate_pick_file_hint'.tr()
+                    : 'translate_change_file'.tr(),
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: _busy ? null : _pickFile,
             ),
@@ -330,15 +379,23 @@ class _TranslateScreenState extends State<TranslateScreen> {
           const SizedBox(height: 16),
 
           // ── Natija formati ──────────────────────────────────────────
-          Text('translate_output_format'.tr(), style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'translate_output_format'.tr(),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 8),
           SegmentedButton<ExportFormat>(
             segments: [
-              for (final f in ExportFormat.values) ButtonSegment(value: f, label: Text(f.label)),
+              for (final f in ExportFormat.values)
+                ButtonSegment(value: f, label: Text(f.label)),
             ],
             selected: {_format},
             showSelectedIcon: false,
-            onSelectionChanged: _busy ? null : (s) => setState(() => _format = s.first),
+            onSelectionChanged: _busy
+                ? null
+                : (s) => setState(() => _format = s.first),
           ),
           const SizedBox(height: 16),
 
@@ -346,27 +403,38 @@ class _TranslateScreenState extends State<TranslateScreen> {
           FilledButton.icon(
             onPressed: _canTranslate ? _translate : null,
             icon: _busy
-                ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: cs.onPrimary,
+                    ),
+                  )
                 : const Icon(Icons.translate_rounded),
-            label: Text(_busy
-                ? (_steps > 1
-                    ? 'translate_progress_pages'.tr(namedArgs: {'current': '$_step', 'total': '$_steps'})
-                    : 'translate_progress'.tr())
-                : 'translate_btn'.tr()),
-            style: FilledButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
+            label: Text(
+              _busy
+                  ? (_steps > 1
+                        ? 'translate_progress_pages'.tr(
+                            namedArgs: {
+                              'current': '$_step',
+                              'total': '$_steps',
+                            },
+                          )
+                        : 'translate_progress'.tr())
+                  : 'translate_btn'.tr(),
+            ),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(double.infinity, 52),
+            ),
           ),
           if (_source == _target)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text('translate_same_language'.tr(), textAlign: TextAlign.center, style: TextStyle(color: cs.error, fontSize: 12.5)),
-            )
-          else if (quota != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
               child: Text(
-                'ai_quota_left'.tr(namedArgs: {'remaining': '${quota.remaining}', 'limit': '${quota.limit}'}),
+                'translate_same_language'.tr(),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12.5),
+                style: TextStyle(color: cs.error, fontSize: 12.5),
               ),
             ),
 
@@ -374,7 +442,9 @@ class _TranslateScreenState extends State<TranslateScreen> {
           if (_outputs.isNotEmpty) ...[
             const SizedBox(height: 20),
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -386,7 +456,12 @@ class _TranslateScreenState extends State<TranslateScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'translate_done'.tr(namedArgs: {'lang': _langName(_target), 'format': _format.label}),
+                            'translate_done'.tr(
+                              namedArgs: {
+                                'lang': _langName(_target),
+                                'format': _format.label,
+                              },
+                            ),
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -396,8 +471,13 @@ class _TranslateScreenState extends State<TranslateScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4, left: 32),
                         child: Text(
-                          'translate_detected'.tr(namedArgs: {'lang': _langName(_detected!)}),
-                          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12.5),
+                          'translate_detected'.tr(
+                            namedArgs: {'lang': _langName(_detected!)},
+                          ),
+                          style: TextStyle(
+                            color: cs.onSurfaceVariant,
+                            fontSize: 12.5,
+                          ),
                         ),
                       ),
                     const SizedBox(height: 8),
@@ -405,7 +485,11 @@ class _TranslateScreenState extends State<TranslateScreen> {
                       ListTile(
                         dense: true,
                         contentPadding: EdgeInsets.zero,
-                        leading: Icon(_format.isImage ? Icons.image_outlined : Icons.insert_drive_file_outlined),
+                        leading: Icon(
+                          _format.isImage
+                              ? Icons.image_outlined
+                              : Icons.insert_drive_file_outlined,
+                        ),
                         title: Text(p.basename(f.path)),
                         trailing: const Icon(Icons.open_in_new, size: 20),
                         onTap: () => OpenFilex.open(f.path),
@@ -417,11 +501,14 @@ class _TranslateScreenState extends State<TranslateScreen> {
                           child: _format.isImage
                               ? OutlinedButton.icon(
                                   onPressed: _saveToGallery,
-                                  icon: const Icon(Icons.photo_library_outlined),
+                                  icon: const Icon(
+                                    Icons.photo_library_outlined,
+                                  ),
                                   label: Text('conv_save_gallery'.tr()),
                                 )
                               : OutlinedButton.icon(
-                                  onPressed: () => OpenFilex.open(_outputs.first.path),
+                                  onPressed: () =>
+                                      OpenFilex.open(_outputs.first.path),
                                   icon: const Icon(Icons.open_in_new),
                                   label: Text('open_file'.tr()),
                                 ),
@@ -429,7 +516,9 @@ class _TranslateScreenState extends State<TranslateScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: FilledButton.tonalIcon(
-                            onPressed: () => Share.shareXFiles(_outputs.map((f) => XFile(f.path)).toList()),
+                            onPressed: () => Share.shareXFiles(
+                              _outputs.map((f) => XFile(f.path)).toList(),
+                            ),
                             icon: const Icon(Icons.share),
                             label: Text('share'.tr()),
                           ),
@@ -445,12 +534,17 @@ class _TranslateScreenState extends State<TranslateScreen> {
                           icon: const Icon(Icons.copy_rounded),
                           tooltip: 'ocr_copy'.tr(),
                           onPressed: () async {
-                            await Clipboard.setData(ClipboardData(text: _text ?? ''));
+                            await Clipboard.setData(
+                              ClipboardData(text: _text ?? ''),
+                            );
                             _snack('translit_copied'.tr());
                           },
                         ),
                         children: [
-                          SelectableText(_text ?? '', style: const TextStyle(fontSize: 15, height: 1.6)),
+                          SelectableText(
+                            _text ?? '',
+                            style: const TextStyle(fontSize: 15, height: 1.6),
+                          ),
                         ],
                       ),
                     ),
@@ -470,7 +564,11 @@ class _LangButton extends StatelessWidget {
   final String value;
   final VoidCallback? onTap;
 
-  const _LangButton({required this.label, required this.value, required this.onTap});
+  const _LangButton({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -482,7 +580,10 @@ class _LangButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           children: [
-            Text(label, style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
+            ),
             const SizedBox(height: 2),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -493,7 +594,12 @@ class _LangButton extends StatelessWidget {
                     maxLines: 2,
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontWeight: FontWeight.w700, color: cs.primary, fontSize: 14.5, height: 1.25),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: cs.primary,
+                      fontSize: 14.5,
+                      height: 1.25,
+                    ),
                   ),
                 ),
                 Icon(Icons.arrow_drop_down, color: cs.primary),

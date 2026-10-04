@@ -7,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 
 import 'settings_service.dart';
+import 'ad_service.dart';
 
 class PdfService {
   static Future<Directory> _pdfSaveDirectory() async {
@@ -52,16 +53,16 @@ class PdfService {
       final pdfImage = pw.MemoryImage(processedBytes);
 
       final isLandscape = decoded.width > decoded.height;
-      final pageFormat =
-          isLandscape ? PdfPageFormat.a4.landscape : PdfPageFormat.a4;
+      final pageFormat = isLandscape
+          ? PdfPageFormat.a4.landscape
+          : PdfPageFormat.a4;
 
       pdf.addPage(
         pw.Page(
           pageFormat: pageFormat,
           margin: const pw.EdgeInsets.all(0),
-          build: (context) => pw.Center(
-            child: pw.Image(pdfImage, fit: pw.BoxFit.contain),
-          ),
+          build: (context) =>
+              pw.Center(child: pw.Image(pdfImage, fit: pw.BoxFit.contain)),
         ),
       );
     }
@@ -72,6 +73,7 @@ class PdfService {
     final baseName = safe.isEmpty ? 'scan_document' : safe;
     final file = await _resolveUniquePdfFile(pdfDir.path, baseName);
     await file.writeAsBytes(await pdf.save());
+    AdService.recordSave();
     return file;
   }
 

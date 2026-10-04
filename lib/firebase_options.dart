@@ -25,6 +25,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '470242131721',
     projectId: 'scan-to-pdf-7fdf1',
     storageBucket: 'scan-to-pdf-7fdf1.firebasestorage.app',
-    androidClientId: '470242131721-0pr6r8abllps69o39uu762m53p5ukp89.apps.googleusercontent.com',
+    androidClientId:
+        '470242131721-0pr6r8abllps69o39uu762m53p5ukp89.apps.googleusercontent.com',
   );
 }

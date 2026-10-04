@@ -9,6 +9,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:xml/xml.dart';
+import '../../services/ad_service.dart';
 
 class WordToPdfScreen extends StatefulWidget {
   const WordToPdfScreen({super.key});
@@ -24,9 +25,7 @@ class _WordToPdfScreenState extends State<WordToPdfScreen> {
   String? _outputPath;
 
   Future<void> _pickWordFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-    );
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
     if (result == null || result.files.single.path == null) return;
 
     final path = result.files.single.path!;
@@ -130,6 +129,7 @@ class _WordToPdfScreenState extends State<WordToPdfScreen> {
       final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final outFile = File('${saveDir.path}/${baseName}_$now.pdf');
       await outFile.writeAsBytes(await pdf.save());
+      AdService.recordSave();
 
       setState(() {
         _outputPath = outFile.path;
@@ -164,11 +164,7 @@ class _WordToPdfScreenState extends State<WordToPdfScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-        title: Text('word_to_pdf_title'.tr()),
-      ),
+      appBar: AppBar(title: Text('word_to_pdf_title'.tr())),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -273,20 +269,20 @@ class _WordToPdfScreenState extends State<WordToPdfScreen> {
                       color: theme.colorScheme.primary.withValues(alpha: 0.35),
                     ),
                     const SizedBox(height: 16),
-                  Text(
-                    'word_to_pdf_empty_hint1'.tr(),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
+                    Text(
+                      'word_to_pdf_empty_hint1'.tr(),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'word_to_pdf_empty_hint2'.tr(),
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    Text(
+                      'word_to_pdf_empty_hint2'.tr(),
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
                   ],
                 ),
               ),

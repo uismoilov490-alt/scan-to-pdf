@@ -19,7 +19,8 @@ import '../../services/ai_service.dart';
 import '../../services/api/api_client.dart';
 import '../../services/transliteration_service.dart';
 import '../../widgets/ai_error.dart';
-import '../../widgets/subscription_sheet.dart';
+import '../../services/ad_service.dart';
+import '../../widgets/ai_badge.dart';
 
 /// Krill ↔ Lotin: Word (.docx) va PDF fayllarni ikki yo'nalishda o'giradi.
 class CyrillicLatinScreen extends StatefulWidget {
@@ -38,7 +39,8 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
   late Script _sourceScript = widget.source;
   // Fayldan aniqlangan yozuv — tanlangan yo'nalishga mos kelmasa ogohlantiramiz
   Script _detected = Script.unknown;
-  bool get _scriptMismatch => _detected != Script.unknown && _detected != _sourceScript;
+  bool get _scriptMismatch =>
+      _detected != Script.unknown && _detected != _sourceScript;
   bool _analyzing = false;
   bool _converting = false;
   String _previewText = '';
@@ -47,6 +49,8 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
   int _totPages = 0;
   // Ko'rib chiqishda AI o'qigan 1-sahifa matni — konvertatsiyada qayta pul sarflamaslik uchun.
   String? _aiFirstPageText;
+  // Shu faylning barcha AI so'rovlari bitta fayl sifatida sanaladi
+  String? _fileId;
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
@@ -72,6 +76,7 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
       _previewText = '';
       _outPath = null;
       _aiFirstPageText = null;
+      _fileId = null;
       _analyzing = true;
     });
 
@@ -106,7 +111,9 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
   }
 
   Future<String> _extractPdfFirstPageText() async {
-    final document = await pdfx.PdfDocument.openData(await _file!.readAsBytes());
+    final document = await pdfx.PdfDocument.openData(
+      await _file!.readAsBytes(),
+    );
     try {
       if (document.pagesCount == 0) return '';
       final bytes = await _renderPage(document, 1);
@@ -114,10 +121,15 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
 
       // ML Kit kirillni o'qiy olmaydi, shuning uchun yozuvni AI aniqlaydi
       // (1 birlik). Kirilmagan yoki limit tugagan bo'lsa — telefondagi OCR.
-      if (_sourceScript == Script.cyrillic && ApiClient.isSignedIn) {
+      final quota = context.read<SubscriptionProvider>().quota;
+      if (_sourceScript == Script.cyrillic &&
+          ApiClient.isSignedIn &&
+          quota?.perFile == false) {
         try {
-          final result = await AiService.ocr(bytes);
-          if (mounted) context.read<SubscriptionProvider>().updateQuota(result.quota);
+          _fileId = AiService.newFileId();
+          final result = await AiService.ocr(bytes, fileId: _fileId);
+          if (mounted)
+            context.read<SubscriptionProvider>().updateQuota(result.quota);
           _aiFirstPageText = result.text;
           return result.text;
         } on AiException {
@@ -153,11 +165,15 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
     await imgFile.writeAsBytes(bytes);
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
-      final result = await recognizer.processImage(InputImage.fromFile(imgFile));
+      final result = await recognizer.processImage(
+        InputImage.fromFile(imgFile),
+      );
       return result.text;
     } finally {
       await recognizer.close();
-      try { await imgFile.delete(); } catch (_) {}
+      try {
+        await imgFile.delete();
+      } catch (_) {}
     }
   }
 
@@ -183,29 +199,14 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'translit_saved'.tr(namedArgs: {'name': outFile.path.split('/').last}),
+              'translit_saved'.tr(
+                namedArgs: {'name': outFile.path.split('/').last},
+              ),
             ),
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
-    } on _NotEnoughQuota catch (e) {
-      if (!mounted) return;
-      setState(() => _converting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('translit_quota_short'.tr(namedArgs: {
-            'pages': '${e.pages}',
-            'remaining': '${e.remaining}',
-          })),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 6),
-          action: SnackBarAction(
-            label: 'ai_upgrade_btn'.tr(),
-            onPressed: () => SubscriptionSheet.show(context),
-          ),
-        ),
-      );
     } on AiException catch (e) {
       if (!mounted) return;
       setState(() => _converting = false);
@@ -220,12 +221,17 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
 
   Future<File> _convertDocx() async {
     final bytes = await _file!.readAsBytes();
-    final converted = TransliterationService.convertDocxBytes(bytes, _sourceScript);
+    final converted = TransliterationService.convertDocxBytes(
+      bytes,
+      _sourceScript,
+    );
     return _saveOutput(converted, _outSuffix('docx'));
   }
 
   Future<File> _convertPdf() async {
-    final document = await pdfx.PdfDocument.openData(await _file!.readAsBytes());
+    final document = await pdfx.PdfDocument.openData(
+      await _file!.readAsBytes(),
+    );
     final pageCount = document.pagesCount;
     // Kirill matnni faqat AI to'g'ri o'qiydi; lotinni telefondagi ML Kit bepul o'qiydi.
     final useAi = _sourceScript == Script.cyrillic;
@@ -235,7 +241,10 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
     final paragraphs = <String>[];
 
     try {
-      if (useAi) _ensureAiQuotaFor(pageCount - (_aiFirstPageText != null ? 1 : 0));
+      if (useAi) {
+        _fileId ??= AiService.newFileId();
+        _ensureAiQuotaFor(pageCount - (_aiFirstPageText != null ? 1 : 0));
+      }
 
       for (int i = 1; i <= pageCount; i++) {
         if (!mounted) break;
@@ -248,8 +257,13 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
           final bytes = await _renderPage(document, i);
           if (bytes == null) continue;
           if (useAi) {
-            final result = await AiService.ocr(bytes, hint: OcrHint.cyrillic);
-            if (mounted) context.read<SubscriptionProvider>().updateQuota(result.quota);
+            final result = await AiService.ocr(
+              bytes,
+              hint: OcrHint.cyrillic,
+              fileId: _fileId,
+            );
+            if (mounted)
+              context.read<SubscriptionProvider>().updateQuota(result.quota);
             text = result.text;
           } else {
             text = await _mlKitRead(bytes);
@@ -257,9 +271,11 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
         }
 
         if (text.isNotEmpty) {
-          paragraphs.add(useAi
-              ? TransliterationService.toLatin(text)
-              : TransliterationService.toCyrillic(text));
+          paragraphs.add(
+            useAi
+                ? TransliterationService.toLatin(text)
+                : TransliterationService.toCyrillic(text),
+          );
         }
       }
     } finally {
@@ -274,10 +290,8 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
     if (!ApiClient.isSignedIn) {
       throw const AiException('AUTH_REQUIRED', '');
     }
-    final quota = context.read<SubscriptionProvider>().quota;
-    if (quota != null && quota.remaining < pages) {
-      throw _NotEnoughQuota(pages: pages, remaining: quota.remaining);
-    }
+    final error = context.read<SubscriptionProvider>().quota?.check(pages);
+    if (error != null) throw error;
   }
 
   Future<File> _buildAndSavePdf(List<String> paragraphs) async {
@@ -295,19 +309,24 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
         build: (ctx) => paragraphs.isEmpty
             ? [pw.Text('ocr_no_text'.tr())]
             : paragraphs
-                .expand((block) => block
-                    .split('\n')
-                    .where((l) => l.trim().isNotEmpty)
-                    .map(
-                      (line) => pw.Padding(
-                        padding: const pw.EdgeInsets.only(bottom: 5),
-                        child: pw.Text(
-                          line,
-                          style: pw.TextStyle(font: fontRegular, fontSize: 11),
+                  .expand(
+                    (block) => block
+                        .split('\n')
+                        .where((l) => l.trim().isNotEmpty)
+                        .map(
+                          (line) => pw.Padding(
+                            padding: const pw.EdgeInsets.only(bottom: 5),
+                            child: pw.Text(
+                              line,
+                              style: pw.TextStyle(
+                                font: fontRegular,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ))
-                .toList(),
+                  )
+                  .toList(),
       ),
     );
 
@@ -321,11 +340,15 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
     if (!await saveDir.exists()) await saveDir.create(recursive: true);
     final outFile = File('${saveDir.path}/$suffix');
     await outFile.writeAsBytes(bytes);
+    AdService.recordSave();
     return outFile;
   }
 
   String _outSuffix(String ext) {
-    final base = _file!.path.split('/').last.replaceAll(RegExp(r'\.[^.]+$'), '');
+    final base = _file!.path
+        .split('/')
+        .last
+        .replaceAll(RegExp(r'\.[^.]+$'), '');
     final tag = _sourceScript == Script.cyrillic ? 'lat' : 'cyr';
     final ts = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     return '${base}_${tag}_$ts.$ext';
@@ -350,11 +373,7 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
     final cs = theme.colorScheme;
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: cs.primary,
-        foregroundColor: cs.onPrimary,
-        title: Text('translit_feature_both'.tr()),
-      ),
+      appBar: AppBar(title: AiTitle('translit_feature_both'.tr())),
       body: _buildFileTab(theme, cs),
     );
   }
@@ -374,12 +393,20 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
         // Yo'nalish
         SegmentedButton<Script>(
           segments: [
-            ButtonSegment(value: Script.cyrillic, label: Text('translit_cyr_to_lat'.tr())),
-            ButtonSegment(value: Script.latin, label: Text('translit_lat_to_cyr'.tr())),
+            ButtonSegment(
+              value: Script.cyrillic,
+              label: Text('translit_cyr_to_lat'.tr()),
+            ),
+            ButtonSegment(
+              value: Script.latin,
+              label: Text('translit_lat_to_cyr'.tr()),
+            ),
           ],
           selected: {_sourceScript},
           showSelectedIcon: false,
-          onSelectionChanged: (_converting || _analyzing) ? null : (sel) => _setDirection(sel.first),
+          onSelectionChanged: (_converting || _analyzing)
+              ? null
+              : (sel) => _setDirection(sel.first),
         ),
         const SizedBox(height: 12),
 
@@ -438,7 +465,9 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
             const SizedBox(height: 14),
             Card(
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Column(
@@ -524,7 +553,8 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
 
           // Konvertatsiya tugmasi
           FilledButton.icon(
-            onPressed: (_converting || _analyzing || _sourceScript == Script.unknown)
+            onPressed:
+                (_converting || _analyzing || _sourceScript == Script.unknown)
                 ? null
                 : _convertFile,
             icon: _converting
@@ -541,12 +571,14 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
               _converting
                   ? 'translit_converting'.tr()
                   : _sourceScript == Script.cyrillic
-                      ? 'translit_to_latin'.tr()
-                      : 'translit_to_cyrillic'.tr(),
+                  ? 'translit_to_latin'.tr()
+                  : 'translit_to_cyrillic'.tr(),
             ),
             style: FilledButton.styleFrom(
               minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ],
@@ -593,20 +625,18 @@ class _FilePickCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: hasFile
                       ? (isPdf
-                          ? cs.errorContainer.withValues(alpha: 0.85)
-                          : cs.primaryContainer.withValues(alpha: 0.85))
+                            ? cs.errorContainer.withValues(alpha: 0.85)
+                            : cs.primaryContainer.withValues(alpha: 0.85))
                       : cs.primaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   hasFile
                       ? (isPdf
-                          ? Icons.picture_as_pdf_rounded
-                          : Icons.article_rounded)
+                            ? Icons.picture_as_pdf_rounded
+                            : Icons.article_rounded)
                       : Icons.upload_file_rounded,
-                  color: hasFile
-                      ? (isPdf ? cs.error : cs.primary)
-                      : cs.primary,
+                  color: hasFile ? (isPdf ? cs.error : cs.primary) : cs.primary,
                 ),
               ),
               const SizedBox(width: 14),
@@ -665,9 +695,7 @@ class _ProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isPdf = fileExt == 'pdf';
-    final progress = (totPages > 0 && isPdf)
-        ? (curPage - 1) / totPages
-        : null;
+    final progress = (totPages > 0 && isPdf) ? (curPage - 1) / totPages : null;
 
     return Card(
       elevation: 0,
@@ -678,23 +706,16 @@ class _ProgressCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 7,
-              ),
+              child: LinearProgressIndicator(value: progress, minHeight: 7),
             ),
             const SizedBox(height: 10),
             Text(
               isPdf && totPages > 0
-                  ? 'translit_progress'.tr(namedArgs: {
-                      'current': '$curPage',
-                      'total': '$totPages',
-                    })
+                  ? 'translit_progress'.tr(
+                      namedArgs: {'current': '$curPage', 'total': '$totPages'},
+                    )
                   : 'translit_converting'.tr(),
-              style: TextStyle(
-                color: cs.onSurfaceVariant,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
             ),
           ],
         ),
@@ -730,7 +751,10 @@ class _InfoBanner extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 12.5, color: color.withValues(alpha: 0.85)),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: color.withValues(alpha: 0.85),
+              ),
             ),
           ),
         ],
@@ -814,19 +838,9 @@ class _EmptyFileHint extends StatelessWidget {
         Text(
           'translit_file_empty_hint2'.tr(),
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: cs.onSurfaceVariant,
-            fontSize: 13,
-          ),
+          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
         ),
       ],
     );
   }
-}
-
-class _NotEnoughQuota implements Exception {
-  final int pages;
-  final int remaining;
-
-  const _NotEnoughQuota({required this.pages, required this.remaining});
 }

@@ -55,17 +55,31 @@ class _PdfSourceSheet extends StatelessWidget {
           Card(
             elevation: 0,
             color: cs.primaryContainer,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              leading: Icon(Icons.folder_open_rounded, color: cs.onPrimaryContainer, size: 30),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 6,
+              ),
+              leading: Icon(
+                Icons.folder_open_rounded,
+                color: cs.onPrimaryContainer,
+                size: 30,
+              ),
               title: Text(
                 'pick_from_device'.tr(),
-                style: TextStyle(fontWeight: FontWeight.w700, color: cs.onPrimaryContainer),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: cs.onPrimaryContainer,
+                ),
               ),
               subtitle: Text(
                 'pick_from_device_hint'.tr(),
-                style: TextStyle(color: cs.onPrimaryContainer.withValues(alpha: 0.8)),
+                style: TextStyle(
+                  color: cs.onPrimaryContainer.withValues(alpha: 0.8),
+                ),
               ),
               trailing: Icon(Icons.chevron_right, color: cs.onPrimaryContainer),
               onTap: () => Navigator.pop(context, _deviceChoice),
@@ -75,9 +89,9 @@ class _PdfSourceSheet extends StatelessWidget {
           Text(
             'saved_in_app'.tr(),
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           if (saved.isEmpty)

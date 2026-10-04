@@ -6,14 +6,20 @@ class TranslateLanguage {
   final String ru;
   final String en;
 
-  const TranslateLanguage(this.code, this.nativeName, this.uz, this.ru, this.en);
+  const TranslateLanguage(
+    this.code,
+    this.nativeName,
+    this.uz,
+    this.ru,
+    this.en,
+  );
 
   /// Ilova tiliga mos nom (ro'yxatda ona-til nomi ostida ko'rsatiladi).
   String localName(String locale) => switch (locale) {
-        'ru' => ru,
-        'en' => en,
-        _ => uz,
-      };
+    'ru' => ru,
+    'en' => en,
+    _ => uz,
+  };
 
   static const auto = 'auto';
 
@@ -21,17 +27,41 @@ class TranslateLanguage {
   static const popularCodes = ['uz', 'uz-Cyrl', 'ru', 'en'];
 
   static const all = <TranslateLanguage>[
-    TranslateLanguage('uz', 'Oʻzbekcha (lotin)', 'Oʻzbek (lotin)', 'Узбекский (латиница)', 'Uzbek (Latin)'),
-    TranslateLanguage('uz-Cyrl', 'Ўзбекча (кирилл)', 'Oʻzbek (kirill)', 'Узбекский (кириллица)', 'Uzbek (Cyrillic)'),
+    TranslateLanguage(
+      'uz',
+      'Oʻzbekcha (lotin)',
+      'Oʻzbek (lotin)',
+      'Узбекский (латиница)',
+      'Uzbek (Latin)',
+    ),
+    TranslateLanguage(
+      'uz-Cyrl',
+      'Ўзбекча (кирилл)',
+      'Oʻzbek (kirill)',
+      'Узбекский (кириллица)',
+      'Uzbek (Cyrillic)',
+    ),
     TranslateLanguage('ru', 'Русский', 'Rus', 'Русский', 'Russian'),
     TranslateLanguage('en', 'English', 'Ingliz', 'Английский', 'English'),
-    TranslateLanguage('kaa', 'Qaraqalpaqsha', 'Qoraqalpoq', 'Каракалпакский', 'Karakalpak'),
+    TranslateLanguage(
+      'kaa',
+      'Qaraqalpaqsha',
+      'Qoraqalpoq',
+      'Каракалпакский',
+      'Karakalpak',
+    ),
     TranslateLanguage('kk', 'Қазақша', 'Qozoq', 'Казахский', 'Kazakh'),
     TranslateLanguage('ky', 'Кыргызча', 'Qirgʻiz', 'Киргизский', 'Kyrgyz'),
     TranslateLanguage('tg', 'Тоҷикӣ', 'Tojik', 'Таджикский', 'Tajik'),
     TranslateLanguage('tk', 'Türkmençe', 'Turkman', 'Туркменский', 'Turkmen'),
     TranslateLanguage('tr', 'Türkçe', 'Turk', 'Турецкий', 'Turkish'),
-    TranslateLanguage('az', 'Azərbaycanca', 'Ozarbayjon', 'Азербайджанский', 'Azerbaijani'),
+    TranslateLanguage(
+      'az',
+      'Azərbaycanca',
+      'Ozarbayjon',
+      'Азербайджанский',
+      'Azerbaijani',
+    ),
     TranslateLanguage('ko', '한국어', 'Koreys', 'Корейский', 'Korean'),
     TranslateLanguage('ja', '日本語', 'Yapon', 'Японский', 'Japanese'),
     TranslateLanguage('zh', '中文', 'Xitoy', 'Китайский', 'Chinese'),
@@ -41,15 +71,39 @@ class TranslateLanguage {
     TranslateLanguage('fr', 'Français', 'Fransuz', 'Французский', 'French'),
     TranslateLanguage('es', 'Español', 'Ispan', 'Испанский', 'Spanish'),
     TranslateLanguage('it', 'Italiano', 'Italyan', 'Итальянский', 'Italian'),
-    TranslateLanguage('pt', 'Português', 'Portugal', 'Португальский', 'Portuguese'),
+    TranslateLanguage(
+      'pt',
+      'Português',
+      'Portugal',
+      'Португальский',
+      'Portuguese',
+    ),
     TranslateLanguage('pl', 'Polski', 'Polyak', 'Польский', 'Polish'),
     TranslateLanguage('uk', 'Українська', 'Ukrain', 'Украинский', 'Ukrainian'),
-    TranslateLanguage('be', 'Беларуская', 'Belarus', 'Белорусский', 'Belarusian'),
+    TranslateLanguage(
+      'be',
+      'Беларуская',
+      'Belarus',
+      'Белорусский',
+      'Belarusian',
+    ),
     TranslateLanguage('hi', 'हिन्दी', 'Hind', 'Хинди', 'Hindi'),
     TranslateLanguage('ur', 'اردو', 'Urdu', 'Урду', 'Urdu'),
-    TranslateLanguage('id', 'Bahasa Indonesia', 'Indonez', 'Индонезийский', 'Indonesian'),
+    TranslateLanguage(
+      'id',
+      'Bahasa Indonesia',
+      'Indonez',
+      'Индонезийский',
+      'Indonesian',
+    ),
     TranslateLanguage('ms', 'Bahasa Melayu', 'Malay', 'Малайский', 'Malay'),
-    TranslateLanguage('vi', 'Tiếng Việt', 'Vyetnam', 'Вьетнамский', 'Vietnamese'),
+    TranslateLanguage(
+      'vi',
+      'Tiếng Việt',
+      'Vyetnam',
+      'Вьетнамский',
+      'Vietnamese',
+    ),
     TranslateLanguage('th', 'ไทย', 'Tay', 'Тайский', 'Thai'),
     TranslateLanguage('he', 'עברית', 'Ivrit', 'Иврит', 'Hebrew'),
     TranslateLanguage('el', 'Ελληνικά', 'Grek', 'Греческий', 'Greek'),

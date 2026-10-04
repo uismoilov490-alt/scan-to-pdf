@@ -16,21 +16,21 @@ enum ConvertMode { jpgToPdf, pdfToJpg, webpToJpg, pngToJpg, jpgToPng }
 
 extension ConvertModeInfo on ConvertMode {
   String get titleKey => switch (this) {
-        ConvertMode.jpgToPdf => 'feature_jpg_to_pdf',
-        ConvertMode.pdfToJpg => 'feature_pdf_to_jpg',
-        ConvertMode.webpToJpg => 'feature_webp_to_jpg',
-        ConvertMode.pngToJpg => 'feature_png_to_jpg',
-        ConvertMode.jpgToPng => 'feature_jpg_to_png',
-      };
+    ConvertMode.jpgToPdf => 'feature_jpg_to_pdf',
+    ConvertMode.pdfToJpg => 'feature_pdf_to_jpg',
+    ConvertMode.webpToJpg => 'feature_webp_to_jpg',
+    ConvertMode.pngToJpg => 'feature_png_to_jpg',
+    ConvertMode.jpgToPng => 'feature_jpg_to_png',
+  };
 
   /// Fayl tanlashda ruxsat etilgan kengaytmalar (PDF rejimida ishlatilmaydi).
   List<String> get inputExtensions => switch (this) {
-        ConvertMode.jpgToPdf => const ['jpg', 'jpeg', 'png', 'webp'],
-        ConvertMode.pdfToJpg => const ['pdf'],
-        ConvertMode.webpToJpg => const ['webp'],
-        ConvertMode.pngToJpg => const ['png'],
-        ConvertMode.jpgToPng => const ['jpg', 'jpeg'],
-      };
+    ConvertMode.jpgToPdf => const ['jpg', 'jpeg', 'png', 'webp'],
+    ConvertMode.pdfToJpg => const ['pdf'],
+    ConvertMode.webpToJpg => const ['webp'],
+    ConvertMode.pngToJpg => const ['png'],
+    ConvertMode.jpgToPng => const ['jpg', 'jpeg'],
+  };
 
   bool get producesImages => this != ConvertMode.jpgToPdf;
 }
@@ -91,7 +91,11 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
     });
 
     void progress(int done, int total) {
-      if (mounted) setState(() { _done = done; _total = total; });
+      if (mounted)
+        setState(() {
+          _done = done;
+          _total = total;
+        });
     }
 
     try {
@@ -106,15 +110,28 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
             enhance: false,
           );
         case ConvertMode.pdfToJpg:
-          _results = await ImageConvertService.pdfToJpg(_inputs.first, onProgress: progress);
+          _results = await ImageConvertService.pdfToJpg(
+            _inputs.first,
+            onProgress: progress,
+          );
         case ConvertMode.webpToJpg:
         case ConvertMode.pngToJpg:
-          _results = await ImageConvertService.convertImages(_inputs, to: ImageFormat.jpg, onProgress: progress);
+          _results = await ImageConvertService.convertImages(
+            _inputs,
+            to: ImageFormat.jpg,
+            onProgress: progress,
+          );
         case ConvertMode.jpgToPng:
-          _results = await ImageConvertService.convertImages(_inputs, to: ImageFormat.png, onProgress: progress);
+          _results = await ImageConvertService.convertImages(
+            _inputs,
+            to: ImageFormat.png,
+            onProgress: progress,
+          );
       }
       if (!mounted) return;
-      final nothing = _mode.producesImages ? _results.isEmpty : _pdfResult == null;
+      final nothing = _mode.producesImages
+          ? _results.isEmpty
+          : _pdfResult == null;
       if (nothing) _snack('conv_failed'.tr());
     } catch (e) {
       if (mounted) _snack('error_prefix'.tr(namedArgs: {'message': '$e'}));
@@ -156,23 +173,26 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: cs.primary,
-        foregroundColor: cs.onPrimary,
-        title: Text(_mode.titleKey.tr()),
-      ),
+      appBar: AppBar(title: Text(_mode.titleKey.tr())),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
               leading: CircleAvatar(
                 radius: 26,
                 backgroundColor: cs.primaryContainer,
                 child: Icon(
-                  isPdfInput ? Icons.picture_as_pdf : Icons.add_photo_alternate_outlined,
+                  isPdfInput
+                      ? Icons.picture_as_pdf
+                      : Icons.add_photo_alternate_outlined,
                   color: cs.onPrimaryContainer,
                 ),
               ),
@@ -182,12 +202,19 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
               ),
               subtitle: Text(
                 _inputs.isEmpty
-                    ? 'conv_formats'.tr(namedArgs: {
-                        'formats': _mode.inputExtensions.map((e) => e.toUpperCase()).toSet().join(', '),
-                      })
+                    ? 'conv_formats'.tr(
+                        namedArgs: {
+                          'formats': _mode.inputExtensions
+                              .map((e) => e.toUpperCase())
+                              .toSet()
+                              .join(', '),
+                        },
+                      )
                     : _inputs.length == 1
-                        ? p.basename(_inputs.first.path)
-                        : 'conv_selected'.tr(namedArgs: {'count': '${_inputs.length}'}),
+                    ? p.basename(_inputs.first.path)
+                    : 'conv_selected'.tr(
+                        namedArgs: {'count': '${_inputs.length}'},
+                      ),
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: _converting ? null : _pick,
@@ -203,12 +230,18 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.file(_inputs[i], width: 84, height: 84, fit: BoxFit.cover,
-                      cacheWidth: 200,
-                      errorBuilder: (_, _, _) => Container(
-                            width: 84, color: cs.surfaceContainerHigh,
-                            child: const Icon(Icons.broken_image_outlined),
-                          )),
+                  child: Image.file(
+                    _inputs[i],
+                    width: 84,
+                    height: 84,
+                    fit: BoxFit.cover,
+                    cacheWidth: 200,
+                    errorBuilder: (_, _, _) => Container(
+                      width: 84,
+                      color: cs.surfaceContainerHigh,
+                      child: const Icon(Icons.broken_image_outlined),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -218,16 +251,26 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
             onPressed: (_inputs.isEmpty || _converting) ? null : _convert,
             icon: _converting
                 ? SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary),
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: cs.onPrimary,
+                    ),
                   )
                 : const Icon(Icons.autorenew_rounded),
-            label: Text(_converting
-                ? (_total > 0
-                    ? 'conv_converting'.tr(namedArgs: {'done': '$_done', 'total': '$_total'})
-                    : 'conv_converting_simple'.tr())
-                : 'conv_convert'.tr()),
-            style: FilledButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
+            label: Text(
+              _converting
+                  ? (_total > 0
+                        ? 'conv_converting'.tr(
+                            namedArgs: {'done': '$_done', 'total': '$_total'},
+                          )
+                        : 'conv_converting_simple'.tr())
+                  : 'conv_convert'.tr(),
+            ),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(double.infinity, 52),
+            ),
           ),
           if (hasResult) ...[
             const SizedBox(height: 20),
@@ -238,8 +281,12 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
                 Expanded(
                   child: Text(
                     _pdfResult != null
-                        ? 'conv_pdf_ready'.tr(namedArgs: {'name': p.basename(_pdfResult!.path)})
-                        : 'conv_done'.tr(namedArgs: {'count': '${_results.length}'}),
+                        ? 'conv_pdf_ready'.tr(
+                            namedArgs: {'name': p.basename(_pdfResult!.path)},
+                          )
+                        : 'conv_done'.tr(
+                            namedArgs: {'count': '${_results.length}'},
+                          ),
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -251,7 +298,9 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3, mainAxisSpacing: 8, crossAxisSpacing: 8,
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
                   // Hujjat sahifasi nisbati (A4) — sahifa tepasidan ko'rinadi
                   childAspectRatio: 0.75,
                 ),
@@ -260,7 +309,12 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
                   onTap: () => OpenFilex.open(_results[i].path),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.file(_results[i], fit: BoxFit.cover, alignment: Alignment.topCenter, cacheWidth: 300),
+                    child: Image.file(
+                      _results[i],
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      cacheWidth: 300,
+                    ),
                   ),
                 ),
               ),

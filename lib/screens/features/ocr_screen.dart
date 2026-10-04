@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../../services/ai_service.dart';
 import '../../widgets/ai_error.dart';
+import '../../widgets/ai_badge.dart';
 
 class OcrScreen extends StatefulWidget {
   const OcrScreen({super.key});
@@ -55,11 +56,16 @@ class _OcrScreenState extends State<OcrScreen> {
     try {
       final String text;
       if (_useAi) {
+        final error = context.read<SubscriptionProvider>().quota?.check(1);
+        if (error != null) throw error;
         final result = await AiService.ocr(await _image!.readAsBytes());
-        if (mounted) context.read<SubscriptionProvider>().updateQuota(result.quota);
+        if (mounted)
+          context.read<SubscriptionProvider>().updateQuota(result.quota);
         text = result.text;
       } else {
-        final result = await _recognizer.processImage(InputImage.fromFile(_image!));
+        final result = await _recognizer.processImage(
+          InputImage.fromFile(_image!),
+        );
         text = result.text;
       }
       if (mounted) {
@@ -87,7 +93,10 @@ class _OcrScreenState extends State<OcrScreen> {
     await Clipboard.setData(ClipboardData(text: _text!));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ocr_copied'.tr()), duration: const Duration(seconds: 2)),
+        SnackBar(
+          content: Text('ocr_copied'.tr()),
+          duration: const Duration(seconds: 2),
+        ),
       );
     }
   }
@@ -98,9 +107,7 @@ class _OcrScreenState extends State<OcrScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-        title: Text('ocr_title'.tr()),
+        title: AiTitle('ocr_title'.tr()),
         actions: [
           if (_text != null && _text!.isNotEmpty)
             IconButton(
@@ -154,7 +161,11 @@ class _OcrScreenState extends State<OcrScreen> {
             children: [
               const Icon(Icons.error_outline, size: 52, color: Colors.red),
               const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -206,8 +217,11 @@ class _OcrScreenState extends State<OcrScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.chrome_reader_mode_outlined, size: 80,
-                color: theme.colorScheme.primary.withValues(alpha: 0.35)),
+            Icon(
+              Icons.chrome_reader_mode_outlined,
+              size: 80,
+              color: theme.colorScheme.primary.withValues(alpha: 0.35),
+            ),
             const SizedBox(height: 20),
             Text(
               'ocr_hint'.tr(),
@@ -224,7 +238,6 @@ class _OcrScreenState extends State<OcrScreen> {
   }
 
   Widget _buildModeBar(ThemeData theme) {
-    final quota = context.watch<SubscriptionProvider>().quota;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       child: Column(
@@ -253,16 +266,12 @@ class _OcrScreenState extends State<OcrScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            _useAi
-                ? (quota != null
-                    ? '${'ocr_ai_hint'.tr()} · ${'ai_quota_left'.tr(namedArgs: {
-                          'remaining': '${quota.remaining}',
-                          'limit': '${quota.limit}',
-                        })}'
-                    : 'ocr_ai_hint'.tr())
-                : 'ocr_fast_hint'.tr(),
+            _useAi ? 'ocr_ai_hint'.tr() : 'ocr_fast_hint'.tr(),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, color: theme.colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),

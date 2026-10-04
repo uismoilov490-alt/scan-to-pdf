@@ -9,15 +9,16 @@ const baseConfig = {
   translateModel: 'test-translate',
   translateCharsPerUnit: 10,
   translateMaxChars: 50,
-  freeDailyUnits: 2,
-  proDailyUnits: 5,
+  freeDailyFiles: 2,
+  freeFileMaxPages: 3,
+  planUnits: { weekly: 4, monthly: 5 },
   nameDailyCap: 2,
   maxImageBytes: 1024,
   ocrModel: 'test-ocr',
   nameModel: 'test-name',
   androidPackage: 'uz.test',
   playServiceAccountFile: '',
-  proProductIds: ['scan_pro_monthly'],
+  products: { scan_pro_weekly: 'weekly', scan_pro_monthly: 'monthly' },
   devProUids: ['pro-user'],
 };
 
@@ -43,7 +44,7 @@ function fakeAi({ failOcr = false } = {}) {
 }
 
 async function start(opts = {}) {
-  const db = openDb(':memory:');
+  const db = opts.db ?? openDb(':memory:');
   const app = createApp({
     config: { ...baseConfig, ...opts.config },
     db,
@@ -65,7 +66,7 @@ async function start(opts = {}) {
       },
       body: body ? JSON.stringify(body) : undefined,
     }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => null) }));
-  return { call, close: () => server.close() };
+  return { call, db, close: () => server.close() };
 }
 
 const img = { image: 'aGVsbG8=', mediaType: 'image/jpeg' };
@@ -79,7 +80,7 @@ test('health ochiq, me esa login talab qiladi', async (t) => {
   assert.equal(r.json.error.code, 'AUTH_REQUIRED');
 });
 
-test('bepul foydalanuvchi limiti tugaydi va 429 qaytadi', async (t) => {
+test('bepul: kunlik fayllar soni sanaladi, limit tugasa 429', async (t) => {
   const s = await start();
   t.after(s.close);
   for (let i = 0; i < 2; i++) {
@@ -92,17 +93,73 @@ test('bepul foydalanuvchi limiti tugaydi va 429 qaytadi', async (t) => {
   assert.equal(over.json.error.code, 'QUOTA_EXCEEDED');
   assert.equal(over.json.error.quota.remaining, 0);
   assert.equal(over.json.error.pro, false);
+  assert.equal(over.json.error.quota.unit, 'file');
 
   // Boshqa foydalanuvchining limiti alohida
   assert.equal((await s.call('POST', '/v1/ai/ocr', { uid: 'u2', body: img })).status, 200);
 });
 
-test('Pro foydalanuvchi kattaroq limit oladi', async (t) => {
+test('bepul: bitta fileId ichidagi sahifalar bitta fayl, lekin sahifa chegarasi bor', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const body = { ...img, fileId: 'fayl-aaaa-1' };
+  for (let i = 0; i < 3; i++) {
+    const r = await s.call('POST', '/v1/ai/ocr', { uid: 'u1', body });
+    assert.equal(r.status, 200);
+    assert.equal(r.json.quota.used, 1);
+  }
+  const big = await s.call('POST', '/v1/ai/ocr', { uid: 'u1', body });
+  assert.equal(big.status, 429);
+  assert.equal(big.json.error.code, 'FILE_TOO_BIG');
+
+  // Ikkinchi fayl hali mumkin, uchinchisi yo'q (limit 2)
+  assert.equal((await s.call('POST', '/v1/ai/ocr', { uid: 'u1', body: { ...img, fileId: 'fayl-bbbb-2' } })).status, 200);
+  const third = await s.call('POST', '/v1/ai/ocr', { uid: 'u1', body: { ...img, fileId: 'fayl-cccc-3' } });
+  assert.equal(third.json.error.code, 'QUOTA_EXCEEDED');
+  // Boshlangan faylni davom ettirish mumkin emas — u allaqachon to'la
+  // (lekin 2-faylni davom ettirish mumkin)
+  assert.equal((await s.call('POST', '/v1/ai/ocr', { uid: 'u1', body: { ...img, fileId: 'fayl-bbbb-2' } })).status, 200);
+});
+
+test('bepul: kechagi fayllar bugungi limitga kirmaydi', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const ins = s.db.prepare('INSERT INTO free_files (uid, file_id, day, units, created_at) VALUES (?, ?, ?, ?, ?)');
+  ins.run('u1', 'eski-fayl-1', '2000-01-01', 1, 0);
+  ins.run('u1', 'eski-fayl-2', '2000-01-01', 1, 0);
+  const me = await s.call('GET', '/v1/me', { uid: 'u1' });
+  assert.equal(me.json.quota.used, 0);
+  assert.equal((await s.call('POST', '/v1/ai/ocr', { uid: 'u1', body: img })).status, 200);
+});
+
+test('Pro: tarif bo\'yicha davr limiti', async (t) => {
   const s = await start();
   t.after(s.close);
   const me = await s.call('GET', '/v1/me', { uid: 'pro-user' });
   assert.equal(me.json.pro, true);
+  assert.equal(me.json.plan, 'monthly');
+  assert.equal(me.json.quota.unit, 'page');
   assert.equal(me.json.quota.limit, 5);
+
+  // Haftalik obunachi: davr = obuna tugashidan 7 kun oldin
+  const now = Date.now();
+  s.db.prepare(
+    'INSERT INTO subscriptions (purchase_token, uid, product_id, expires_at, state, checked_at) VALUES (?, ?, ?, ?, ?, ?)',
+  ).run('tok', 'w1', 'scan_pro_weekly', now + 2 * 86400000, 'SUBSCRIPTION_STATE_ACTIVE', now);
+  // Davrdan oldingi sarf hisobga olinmaydi
+  s.db.prepare('INSERT INTO usage_log (uid, units, file_id, created_at) VALUES (?, ?, ?, ?)')
+    .run('w1', 4, null, now - 6 * 86400000);
+  const w = await s.call('GET', '/v1/me', { uid: 'w1' });
+  assert.equal(w.json.plan, 'weekly');
+  assert.equal(w.json.quota.limit, 4);
+  assert.equal(w.json.quota.used, 0);
+  assert.equal(w.json.quota.resetsAt, now + 2 * 86400000);
+  for (let i = 0; i < 4; i++) {
+    assert.equal((await s.call('POST', '/v1/ai/ocr', { uid: 'w1', body: img })).status, 200);
+  }
+  const over = await s.call('POST', '/v1/ai/ocr', { uid: 'w1', body: img });
+  assert.equal(over.status, 429);
+  assert.equal(over.json.error.pro, true);
 });
 
 test('AI xato bersa limit yonmaydi', async (t) => {
@@ -170,17 +227,18 @@ test('sanitizeTitle fayl nomiga yaroqsiz belgilarni olib tashlaydi', () => {
 });
 
 test('tarjima: matn, til tekshiruvi va limit birliklari', async (t) => {
-  const s = await start({ config: { freeDailyUnits: 3 } });
+  const s = await start();
   t.after(s.close);
-  const ok = await s.call('POST', '/v1/ai/translate', { uid: 'u1', body: { text: 'Привет', source: 'auto', target: 'uz' } });
+  const ok = await s.call('POST', '/v1/ai/translate', { uid: 'u1', body: { text: 'Привет', source: 'auto', target: 'uz', fileId: 'tarjima-0001' } });
   assert.equal(ok.status, 200);
   assert.equal(ok.json.translation, '[auto→Uzbek (Latin script)] Привет');
   assert.equal(ok.json.detected, 'ru');
   assert.equal(ok.json.quota.used, 1);
 
-  // 25 belgi / 10 = 3 birlik — qolgan 2 tadan ko'p
-  const over = await s.call('POST', '/v1/ai/translate', { uid: 'u1', body: { text: 'a'.repeat(25), target: 'en' } });
+  // Shu faylga 25 belgi / 10 = 3 birlik qo'shilsa — 1+3 > 3 sahifa chegarasi
+  const over = await s.call('POST', '/v1/ai/translate', { uid: 'u1', body: { text: 'a'.repeat(25), target: 'en', fileId: 'tarjima-0001' } });
   assert.equal(over.status, 429);
+  assert.equal(over.json.error.code, 'FILE_TOO_BIG');
 
   const badLang = await s.call('POST', '/v1/ai/translate', { uid: 'u1', body: { text: 'x', target: 'xx' } });
   assert.equal(badLang.status, 400);

@@ -38,7 +38,13 @@ class _LanguagePickerState extends State<_LanguagePicker> {
   bool _matches(TranslateLanguage l) {
     if (_query.isEmpty) return true;
     final q = _query.toLowerCase();
-    return [l.nativeName, l.uz, l.ru, l.en, l.code].any((s) => s.toLowerCase().contains(q));
+    return [
+      l.nativeName,
+      l.uz,
+      l.ru,
+      l.en,
+      l.code,
+    ].any((s) => s.toLowerCase().contains(q));
   }
 
   @override
@@ -50,31 +56,43 @@ class _LanguagePickerState extends State<_LanguagePicker> {
         .whereType<TranslateLanguage>()
         .where(_matches)
         .toList();
-    final rest = TranslateLanguage.all
-        .where((l) => !TranslateLanguage.popularCodes.contains(l.code))
-        .where(_matches)
-        .toList()
-      ..sort((a, b) => a.localName(locale).compareTo(b.localName(locale)));
+    final rest =
+        TranslateLanguage.all
+            .where((l) => !TranslateLanguage.popularCodes.contains(l.code))
+            .where(_matches)
+            .toList()
+          ..sort((a, b) => a.localName(locale).compareTo(b.localName(locale)));
 
     Widget tile(String code, String title, String? subtitle, {IconData? icon}) {
       final isSelected = code == widget.selected;
       return ListTile(
         leading: icon != null ? Icon(icon, color: cs.primary) : null,
-        title: Text(title, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
         subtitle: subtitle == null || subtitle == title ? null : Text(subtitle),
-        trailing: isSelected ? Icon(Icons.check_circle, color: cs.primary) : null,
+        trailing: isSelected
+            ? Icon(Icons.check_circle, color: cs.primary)
+            : null,
         selected: isSelected,
         onTap: () => Navigator.pop(context, code),
       );
     }
 
     Widget header(String text) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Text(
-            text,
-            style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurfaceVariant, fontSize: 13),
-          ),
-        );
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: cs.onSurfaceVariant,
+          fontSize: 13,
+        ),
+      ),
+    );
 
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.8,
@@ -100,11 +118,18 @@ class _LanguagePickerState extends State<_LanguagePicker> {
             child: ListView(
               children: [
                 if (widget.allowAuto && _query.isEmpty)
-                  tile(TranslateLanguage.auto, 'translate_auto_detect'.tr(), null, icon: Icons.auto_awesome),
+                  tile(
+                    TranslateLanguage.auto,
+                    'translate_auto_detect'.tr(),
+                    null,
+                    icon: Icons.auto_awesome,
+                  ),
                 if (popular.isNotEmpty) header('translate_popular'.tr()),
-                for (final l in popular) tile(l.code, l.nativeName, l.localName(locale)),
+                for (final l in popular)
+                  tile(l.code, l.nativeName, l.localName(locale)),
                 if (rest.isNotEmpty) header('translate_all_languages'.tr()),
-                for (final l in rest) tile(l.code, l.nativeName, l.localName(locale)),
+                for (final l in rest)
+                  tile(l.code, l.nativeName, l.localName(locale)),
                 if (popular.isEmpty && rest.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(24),

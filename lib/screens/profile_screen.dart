@@ -97,7 +97,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: Icon(Icons.warning_amber_rounded, color: Theme.of(ctx).colorScheme.error),
+        icon: Icon(
+          Icons.warning_amber_rounded,
+          color: Theme.of(ctx).colorScheme.error,
+        ),
         title: Text('profile_delete_confirm_title'.tr()),
         content: Text('profile_delete_confirm_body'.tr()),
         actions: [
@@ -125,17 +128,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (e.code == 'requires-recent-login') {
         // Xavfsizlik uchun Firebase yaqinda kirishni talab qiladi
         await UserService.signOut();
-        messenger.showSnackBar(SnackBar(
-          content: Text('profile_delete_relogin'.tr()),
-          behavior: SnackBarBehavior.floating,
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('profile_delete_relogin'.tr()),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         if (mounted) Navigator.pop(context, true);
         return;
       }
-      messenger.showSnackBar(SnackBar(
-        content: Text('error_prefix'.tr(namedArgs: {'message': e.message ?? e.code})),
-        behavior: SnackBarBehavior.floating,
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'error_prefix'.tr(namedArgs: {'message': e.message ?? e.code}),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     } on AiException catch (e) {
       if (mounted) await showAiError(context, e);
@@ -144,10 +153,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
     Navigator.pop(context, true);
-    messenger.showSnackBar(SnackBar(
-      content: Text('profile_delete_success'.tr()),
-      behavior: SnackBarBehavior.floating,
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('profile_delete_success'.tr()),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _openSubscriptionsSheet() => SubscriptionSheet.show(context);
@@ -201,9 +212,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                isGuest
-                                    ? 'drawer_guest_user'.tr()
-                                    : user.name,
+                                isGuest ? 'drawer_guest_user'.tr() : user.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -230,11 +239,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 FilledButton.tonal(
                                   style: FilledButton.styleFrom(
                                     foregroundColor: cs.onPrimary,
-                                    backgroundColor: cs.onPrimary
-                                        .withValues(alpha: 0.18),
+                                    backgroundColor: cs.onPrimary.withValues(
+                                      alpha: 0.18,
+                                    ),
                                   ),
                                   onPressed: _openRegister,
-                                  child: Text('profile_login_register_btn'.tr()),
+                                  child: Text(
+                                    'profile_login_register_btn'.tr(),
+                                  ),
                                 ),
                               ],
                             ],
@@ -464,4 +476,3 @@ class _ProfileActionTile extends StatelessWidget {
     );
   }
 }
-

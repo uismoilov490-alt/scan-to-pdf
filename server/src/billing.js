@@ -9,6 +9,9 @@ const VALID_STATES = new Set([
   'SUBSCRIPTION_STATE_CANCELED',
 ]);
 
+const DAY_MS = 24 * 3600 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+
 function createBilling(db, config) {
   const configured =
     Boolean(config.playServiceAccountFile) && fs.existsSync(config.playServiceAccountFile);
@@ -21,7 +24,8 @@ function createBilling(db, config) {
     : null;
 
   const activeStmt = db.prepare(
-    'SELECT MAX(expires_at) AS until FROM subscriptions WHERE uid = ? AND expires_at > ?',
+    'SELECT product_id, expires_at FROM subscriptions WHERE uid = ? AND expires_at > ? ' +
+      'ORDER BY expires_at DESC LIMIT 1',
   );
   const upsertStmt = db.prepare(`
     INSERT INTO subscriptions (purchase_token, uid, product_id, expires_at, state, checked_at)
@@ -31,16 +35,26 @@ function createBilling(db, config) {
       expires_at = excluded.expires_at, state = excluded.state, checked_at = excluded.checked_at
   `);
 
+  // Joriy to'lov davri boshi: limit shu paytdan beri sarflangan sahifalardan hisoblanadi
+  function periodStart(plan, expiresAt) {
+    if (plan === 'weekly') return expiresAt - WEEK_MS;
+    const d = new Date(expiresAt);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return d.getTime();
+  }
+
   function proStatus(uid) {
     if (config.devProUids.includes(uid)) {
-      return { pro: true, proUntil: null };
+      return { pro: true, plan: 'monthly', proUntil: null, periodStart: Date.now() - 30 * DAY_MS };
     }
     const row = activeStmt.get(uid, Date.now());
-    return row?.until ? { pro: true, proUntil: row.until } : { pro: false, proUntil: null };
+    const plan = row && config.products[row.product_id];
+    if (!plan) return { pro: false, plan: 'free', proUntil: null, periodStart: null };
+    return { pro: true, plan, proUntil: row.expires_at, periodStart: periodStart(plan, row.expires_at) };
   }
 
   async function verify(uid, { productId, purchaseToken }) {
-    if (!config.proProductIds.includes(productId)) {
+    if (!config.products[productId]) {
       throw new ApiError(400, 'BAD_PRODUCT', 'Noma\'lum mahsulot');
     }
     if (!auth) {

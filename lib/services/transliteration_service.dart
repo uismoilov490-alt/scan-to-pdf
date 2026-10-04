@@ -14,41 +14,76 @@ class TransliterationService {
 
   // ── Kirill → Lotin (е va ц alohida qoida bilan, pastda) ───────────────────
   static const Map<String, String> _cyrToLat = {
-    'А': 'A',  'а': 'a',
-    'Б': 'B',  'б': 'b',
-    'В': 'V',  'в': 'v',
-    'Г': 'G',  'г': 'g',
-    'Д': 'D',  'д': 'd',
-    'Ё': 'Yo', 'ё': 'yo',
-    'Ж': 'J',  'ж': 'j',
-    'З': 'Z',  'з': 'z',
-    'И': 'I',  'и': 'i',
-    'Й': 'Y',  'й': 'y',
-    'К': 'K',  'к': 'k',
-    'Л': 'L',  'л': 'l',
-    'М': 'M',  'м': 'm',
-    'Н': 'N',  'н': 'n',
-    'О': 'O',  'о': 'o',
-    'П': 'P',  'п': 'p',
-    'Р': 'R',  'р': 'r',
-    'С': 'S',  'с': 's',
-    'Т': 'T',  'т': 't',
-    'У': 'U',  'у': 'u',
-    'Ф': 'F',  'ф': 'f',
-    'Х': 'X',  'х': 'x',
-    'Ч': 'Ch', 'ч': 'ch',
-    'Ш': 'Sh', 'ш': 'sh',
-    'Щ': 'Sh', 'щ': 'sh',
-    'Ъ': _tutuq, 'ъ': _tutuq,
-    'Ы': 'I',  'ы': 'i',
-    'Ь': '',   'ь': '',
-    'Э': 'E',  'э': 'e',
-    'Ю': 'Yu', 'ю': 'yu',
-    'Я': 'Ya', 'я': 'ya',
-    'Қ': 'Q',  'қ': 'q',
-    'Ғ': 'G$_okina', 'ғ': 'g$_okina',
-    'Ҳ': 'H',  'ҳ': 'h',
-    'Ў': 'O$_okina', 'ў': 'o$_okina',
+    'А': 'A',
+    'а': 'a',
+    'Б': 'B',
+    'б': 'b',
+    'В': 'V',
+    'в': 'v',
+    'Г': 'G',
+    'г': 'g',
+    'Д': 'D',
+    'д': 'd',
+    'Ё': 'Yo',
+    'ё': 'yo',
+    'Ж': 'J',
+    'ж': 'j',
+    'З': 'Z',
+    'з': 'z',
+    'И': 'I',
+    'и': 'i',
+    'Й': 'Y',
+    'й': 'y',
+    'К': 'K',
+    'к': 'k',
+    'Л': 'L',
+    'л': 'l',
+    'М': 'M',
+    'м': 'm',
+    'Н': 'N',
+    'н': 'n',
+    'О': 'O',
+    'о': 'o',
+    'П': 'P',
+    'п': 'p',
+    'Р': 'R',
+    'р': 'r',
+    'С': 'S',
+    'с': 's',
+    'Т': 'T',
+    'т': 't',
+    'У': 'U',
+    'у': 'u',
+    'Ф': 'F',
+    'ф': 'f',
+    'Х': 'X',
+    'х': 'x',
+    'Ч': 'Ch',
+    'ч': 'ch',
+    'Ш': 'Sh',
+    'ш': 'sh',
+    'Щ': 'Sh',
+    'щ': 'sh',
+    'Ъ': _tutuq,
+    'ъ': _tutuq,
+    'Ы': 'I',
+    'ы': 'i',
+    'Ь': '',
+    'ь': '',
+    'Э': 'E',
+    'э': 'e',
+    'Ю': 'Yu',
+    'ю': 'yu',
+    'Я': 'Ya',
+    'я': 'ya',
+    'Қ': 'Q',
+    'қ': 'q',
+    'Ғ': 'G$_okina',
+    'ғ': 'g$_okina',
+    'Ҳ': 'H',
+    'ҳ': 'h',
+    'Ў': 'O$_okina',
+    'ў': 'o$_okina',
   };
 
   static const _cyrVowels = 'аеёиоуўэюяыАЕЁИОУЎЭЮЯЫ';
@@ -56,54 +91,101 @@ class TransliterationService {
 
   // Oy nomlarining rasmiy yozilishi: сентябрь → sentabr, октябрь → oktabr
   static const _cyrMonthFixes = [
-    ('сентябр', 'сентабр'), ('Сентябр', 'Сентабр'), ('СЕНТЯБР', 'СЕНТАБР'),
-    ('октябр', 'октабр'), ('Октябр', 'Октабр'), ('ОКТЯБР', 'ОКТАБР'),
+    ('сентябр', 'сентабр'),
+    ('Сентябр', 'Сентабр'),
+    ('СЕНТЯБР', 'СЕНТАБР'),
+    ('октябр', 'октабр'),
+    ('Октябр', 'Октабр'),
+    ('ОКТЯБР', 'ОКТАБР'),
   ];
 
   // Lotindan kirillga: ь belgisi tiklanadigan oy nomlari
   static const _latMonths = {
-    'yanvar': 'январь', 'fevral': 'февраль', 'aprel': 'апрель',
-    'iyun': 'июнь', 'iyul': 'июль', 'sentabr': 'сентябрь',
-    'oktabr': 'октябрь', 'noyabr': 'ноябрь', 'dekabr': 'декабрь',
+    'yanvar': 'январь',
+    'fevral': 'февраль',
+    'aprel': 'апрель',
+    'iyun': 'июнь',
+    'iyul': 'июль',
+    'sentabr': 'сентябрь',
+    'oktabr': 'октябрь',
+    'noyabr': 'ноябрь',
+    'dekabr': 'декабрь',
   };
 
   // ── Lotin → Kirill: koʻp belgili birikmalar (tartib muhim) ────────────────
   static const List<(String, String)> _latToCyrSeq = [
-    ("O'", 'Ў'), ("o'", 'ў'),
-    ("G'", 'Ғ'), ("g'", 'ғ'),
-    ('SH', 'Ш'), ('Sh', 'Ш'), ('sh', 'ш'),
-    ('CH', 'Ч'), ('Ch', 'Ч'), ('ch', 'ч'),
-    ('YO', 'Ё'), ('Yo', 'Ё'), ('yo', 'ё'),
-    ('YU', 'Ю'), ('Yu', 'Ю'), ('yu', 'ю'),
-    ('YA', 'Я'), ('Ya', 'Я'), ('ya', 'я'),
-    ('YE', 'Е'), ('Ye', 'Е'), ('ye', 'е'),
+    ("O'", 'Ў'),
+    ("o'", 'ў'),
+    ("G'", 'Ғ'),
+    ("g'", 'ғ'),
+    ('SH', 'Ш'),
+    ('Sh', 'Ш'),
+    ('sh', 'ш'),
+    ('CH', 'Ч'),
+    ('Ch', 'Ч'),
+    ('ch', 'ч'),
+    ('YO', 'Ё'),
+    ('Yo', 'Ё'),
+    ('yo', 'ё'),
+    ('YU', 'Ю'),
+    ('Yu', 'Ю'),
+    ('yu', 'ю'),
+    ('YA', 'Я'),
+    ('Ya', 'Я'),
+    ('ya', 'я'),
+    ('YE', 'Е'),
+    ('Ye', 'Е'),
+    ('ye', 'е'),
   ];
 
   // ── Lotin → Kirill: yakka harflar (e alohida qoida bilan) ─────────────────
   static const Map<String, String> _latToCyrSingle = {
-    'A': 'А', 'a': 'а',
-    'B': 'Б', 'b': 'б',
-    'D': 'Д', 'd': 'д',
-    'F': 'Ф', 'f': 'ф',
-    'G': 'Г', 'g': 'г',
-    'H': 'Ҳ', 'h': 'ҳ',
-    'I': 'И', 'i': 'и',
-    'J': 'Ж', 'j': 'ж',
-    'K': 'К', 'k': 'к',
-    'L': 'Л', 'l': 'л',
-    'M': 'М', 'm': 'м',
-    'N': 'Н', 'n': 'н',
-    'O': 'О', 'o': 'о',
-    'P': 'П', 'p': 'п',
-    'Q': 'Қ', 'q': 'қ',
-    'R': 'Р', 'r': 'р',
-    'S': 'С', 's': 'с',
-    'T': 'Т', 't': 'т',
-    'U': 'У', 'u': 'у',
-    'V': 'В', 'v': 'в',
-    'X': 'Х', 'x': 'х',
-    'Y': 'Й', 'y': 'й',
-    'Z': 'З', 'z': 'з',
+    'A': 'А',
+    'a': 'а',
+    'B': 'Б',
+    'b': 'б',
+    'D': 'Д',
+    'd': 'д',
+    'F': 'Ф',
+    'f': 'ф',
+    'G': 'Г',
+    'g': 'г',
+    'H': 'Ҳ',
+    'h': 'ҳ',
+    'I': 'И',
+    'i': 'и',
+    'J': 'Ж',
+    'j': 'ж',
+    'K': 'К',
+    'k': 'к',
+    'L': 'Л',
+    'l': 'л',
+    'M': 'М',
+    'm': 'м',
+    'N': 'Н',
+    'n': 'н',
+    'O': 'О',
+    'o': 'о',
+    'P': 'П',
+    'p': 'п',
+    'Q': 'Қ',
+    'q': 'қ',
+    'R': 'Р',
+    'r': 'р',
+    'S': 'С',
+    's': 'с',
+    'T': 'Т',
+    't': 'т',
+    'U': 'У',
+    'u': 'у',
+    'V': 'В',
+    'v': 'в',
+    'X': 'Х',
+    'x': 'х',
+    'Y': 'Й',
+    'y': 'й',
+    'Z': 'З',
+    'z': 'з',
     "'": 'ъ',
   };
 
@@ -133,7 +215,10 @@ class TransliterationService {
       String out;
       if (ch == 'Е' || ch == 'е') {
         // Soʻz boshida, unlidan va ъ/ь dan keyin — "ye"
-        final ye = !_isLetter(prev) || _cyrVowels.contains(prev!) || 'ЪъЬь'.contains(prev);
+        final ye =
+            !_isLetter(prev) ||
+            _cyrVowels.contains(prev!) ||
+            'ЪъЬь'.contains(prev);
         out = ye ? (upper ? 'Ye' : 'ye') : (upper ? 'E' : 'e');
       } else if (ch == 'Ц' || ch == 'ц') {
         // Unlidan keyin "ts", soʻz boshida va undoshdan keyin "s"
@@ -145,7 +230,8 @@ class TransliterationService {
 
       // BOSH HARFLI soʻzda: Ш → SH (Sh emas)
       if (upper && out.length > 1 && _isLetter(out[1])) {
-        final allCaps = (_isLetter(next) && _isUpper(next!)) ||
+        final allCaps =
+            (_isLetter(next) && _isUpper(next!)) ||
             (!_isLetter(next) && _isLetter(prev) && _isUpper(prev!));
         if (allCaps) out = out.toUpperCase();
       }
@@ -164,7 +250,8 @@ class TransliterationService {
       (m) {
         final word = m[0]!;
         final cyr = _latMonths[word.toLowerCase()]!;
-        if (word.length > 1 && word == word.toUpperCase()) return cyr.toUpperCase();
+        if (word.length > 1 && word == word.toUpperCase())
+          return cyr.toUpperCase();
         if (_isUpper(word[0])) return cyr[0].toUpperCase() + cyr.substring(1);
         return cyr;
       },
@@ -237,7 +324,7 @@ class TransliterationService {
       if (_isCyrillicRune(rune)) {
         cyr++;
       } else if ((rune >= 0x41 && rune <= 0x5A) ||
-                 (rune >= 0x61 && rune <= 0x7A)) {
+          (rune >= 0x61 && rune <= 0x7A)) {
         lat++;
       }
     }
@@ -248,11 +335,16 @@ class TransliterationService {
 
   static bool _isCyrillicRune(int cp) =>
       (cp >= 0x0410 && cp <= 0x044F) || // А–я (asosiy)
-      cp == 0x0401 || cp == 0x0451 ||   // Ё ё
-      cp == 0x040E || cp == 0x045E ||   // Ў ў
-      cp == 0x0492 || cp == 0x0493 ||   // Ғ ғ
-      cp == 0x049A || cp == 0x049B ||   // Қ қ
-      cp == 0x04B2 || cp == 0x04B3;     // Ҳ ҳ
+      cp == 0x0401 ||
+      cp == 0x0451 || // Ё ё
+      cp == 0x040E ||
+      cp == 0x045E || // Ў ў
+      cp == 0x0492 ||
+      cp == 0x0493 || // Ғ ғ
+      cp == 0x049A ||
+      cp == 0x049B || // Қ қ
+      cp == 0x04B2 ||
+      cp == 0x04B3; // Ҳ ҳ
 
   // ── DOCX konvertatsiya ─────────────────────────────────────────────────────
 
@@ -267,9 +359,7 @@ class TransliterationService {
         final xmlStr = utf8.decode(entry.content as List<int>);
         final converted = _convertWordXml(xmlStr, sourceScript);
         final outBytes = utf8.encode(converted);
-        outArchive.addFile(
-          ArchiveFile(entry.name, outBytes.length, outBytes),
-        );
+        outArchive.addFile(ArchiveFile(entry.name, outBytes.length, outBytes));
       } else {
         outArchive.addFile(entry);
       }
@@ -322,7 +412,10 @@ class TransliterationService {
           final doc = XmlDocument.parse(xmlStr);
           final buf = StringBuffer();
           for (final para in doc.findAllElements('w:p')) {
-            final line = para.findAllElements('w:t').map((e) => e.innerText).join();
+            final line = para
+                .findAllElements('w:t')
+                .map((e) => e.innerText)
+                .join();
             if (line.isEmpty) continue;
             if (buf.isNotEmpty) buf.write('\n');
             buf.write(line);

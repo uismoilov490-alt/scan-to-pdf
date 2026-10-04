@@ -51,7 +51,10 @@ class _SavedDocumentsScreenState extends State<SavedDocumentsScreen> {
         builder: (_) => Scaffold(
           appBar: AppBar(
             title: Text(
-              file.path.split(Platform.pathSeparator).last.replaceAll('.pdf', ''),
+              file.path
+                  .split(Platform.pathSeparator)
+                  .last
+                  .replaceAll('.pdf', ''),
               style: const TextStyle(fontSize: 15),
             ),
             actions: [
@@ -77,8 +80,10 @@ class _SavedDocumentsScreenState extends State<SavedDocumentsScreen> {
   }
 
   Future<void> _deletePdf(File file) async {
-    final name =
-        file.path.split(Platform.pathSeparator).last.replaceAll('.pdf', '');
+    final name = file.path
+        .split(Platform.pathSeparator)
+        .last
+        .replaceAll('.pdf', '');
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -117,162 +122,159 @@ class _SavedDocumentsScreenState extends State<SavedDocumentsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _pdfs.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.picture_as_pdf_outlined,
-                          size: 72,
-                          color: cs.primary.withValues(alpha: 0.35),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'no_documents'.tr(),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'no_documents_hint'.tr(),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.picture_as_pdf_outlined,
+                      size: 72,
+                      color: cs.primary.withValues(alpha: 0.35),
                     ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _pdfs.length,
-                    itemBuilder: (context, index) {
-                      final file = _pdfs[index];
-                      final stat = file.statSync();
-                      final name = file.path
-                          .split(Platform.pathSeparator)
-                          .last
-                          .replaceAll('.pdf', '');
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        elevation: 0,
-                        color: cs.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(
-                            color: cs.outlineVariant.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => _viewPdf(file),
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 50,
-                                  height: 58,
-                                  decoration: BoxDecoration(
-                                    color: cs.primaryContainer,
-                                    borderRadius: BorderRadius.circular(10),
+                    const SizedBox(height: 16),
+                    Text(
+                      'no_documents'.tr(),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'no_documents_hint'.tr(),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _pdfs.length,
+                itemBuilder: (context, index) {
+                  final file = _pdfs[index];
+                  final stat = file.statSync();
+                  final name = file.path
+                      .split(Platform.pathSeparator)
+                      .last
+                      .replaceAll('.pdf', '');
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 0,
+                    color: cs.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(
+                        color: cs.outlineVariant.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => _viewPdf(file),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 58,
+                              decoration: BoxDecoration(
+                                color: cs.primaryContainer,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.picture_as_pdf,
+                                color: cs.primary,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  child: Icon(
-                                    Icons.picture_as_pdf,
-                                    color: cs.primary,
-                                    size: 28,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _formatDate(stat.modified),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatSize(stat.size),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert),
+                              onSelected: (val) {
+                                if (val == 'view') _viewPdf(file);
+                                if (val == 'share') _sharePdf(file);
+                                if (val == 'delete') _deletePdf(file);
+                              },
+                              itemBuilder: (_) => [
+                                PopupMenuItem(
+                                  value: 'view',
+                                  child: ListTile(
+                                    leading: const Icon(Icons.visibility),
+                                    title: Text('view'.tr()),
+                                    contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 15,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _formatDate(stat.modified),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: cs.onSurfaceVariant,
-                                        ),
-                                      ),
-                                      Text(
-                                        _formatSize(stat.size),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: cs.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
+                                PopupMenuItem(
+                                  value: 'share',
+                                  child: ListTile(
+                                    leading: const Icon(Icons.share),
+                                    title: Text('share'.tr()),
+                                    contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
-                                PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert),
-                                  onSelected: (val) {
-                                    if (val == 'view') _viewPdf(file);
-                                    if (val == 'share') _sharePdf(file);
-                                    if (val == 'delete') _deletePdf(file);
-                                  },
-                                  itemBuilder: (_) => [
-                                    PopupMenuItem(
-                                      value: 'view',
-                                      child: ListTile(
-                                        leading: const Icon(Icons.visibility),
-                                        title: Text('view'.tr()),
-                                        contentPadding: EdgeInsets.zero,
-                                      ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: ListTile(
+                                    leading: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
                                     ),
-                                    PopupMenuItem(
-                                      value: 'share',
-                                      child: ListTile(
-                                        leading: const Icon(Icons.share),
-                                        title: Text('share'.tr()),
-                                        contentPadding: EdgeInsets.zero,
-                                      ),
+                                    title: Text(
+                                      'delete'.tr(),
+                                      style: const TextStyle(color: Colors.red),
                                     ),
-                                    PopupMenuItem(
-                                      value: 'delete',
-                                      child: ListTile(
-                                        leading: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                        ),
-                                        title: Text(
-                                          'delete'.tr(),
-                                          style: const TextStyle(
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                        contentPadding: EdgeInsets.zero,
-                                      ),
-                                    ),
-                                  ],
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

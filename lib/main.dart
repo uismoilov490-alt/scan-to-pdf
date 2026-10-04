@@ -10,11 +10,15 @@ import 'screens/home_screen.dart';
 import 'screens/language_screen.dart';
 import 'services/language_service.dart';
 import 'theme/app_theme.dart';
+import 'services/ad_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Reklama SDK'si fonda yuklanadi — ilova ochilishini kechiktirmaydi
+  AdService.init();
 
   final isFirstLaunch = await LanguageService.isFirstLaunch();
   final appSettings = AppSettingsController();
@@ -60,6 +64,7 @@ class ScanToPdfApp extends StatelessWidget {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       locale: context.locale,
+      navigatorObservers: [AdRouteObserver()],
       home: isFirstLaunch ? const LanguageScreen() : const HomeScreen(),
     );
   }

@@ -2,9 +2,14 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SubscriptionService {
+  // Play Console'dagi obuna ID'lari (server config.products bilan bir xil)
   static const String proMonthlyId = 'scan_pro_monthly';
-  static const String proYearlyId = 'scan_pro_yearly';
-  static const Set<String> productIds = {proMonthlyId, proYearlyId};
+  static const Set<String> productIds = {proMonthlyId};
+
+  // Play narxlari yuklanmaguncha (yoki do'kon yo'q bo'lsa) ko'rsatiladigan narx
+  static const String monthlyFallbackPrice = r'$3';
+
+  static const String androidPackage = 'uz.myhujjat.scan_to_pdf';
 
   static const _keyIsPro = 'sub_is_pro';
   static const _keyPurchaseId = 'sub_purchase_id';

@@ -64,7 +64,10 @@ class SettingsScreen extends StatelessWidget {
                         ButtonSegment(
                           value: ThemeMode.system,
                           label: Text('settings_theme_system'.tr()),
-                          icon: const Icon(Icons.brightness_auto_rounded, size: 18),
+                          icon: const Icon(
+                            Icons.brightness_auto_rounded,
+                            size: 18,
+                          ),
                         ),
                         ButtonSegment(
                           value: ThemeMode.light,
@@ -164,7 +167,10 @@ class SettingsScreen extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
-                              Text(lang.flag, style: const TextStyle(fontSize: 22)),
+                              Text(
+                                lang.flag,
+                                style: const TextStyle(fontSize: 22),
+                              ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -229,8 +235,11 @@ class SettingsScreen extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.folder_special_rounded,
-                            color: cs.primary, size: 22),
+                        Icon(
+                          Icons.folder_special_rounded,
+                          color: cs.primary,
+                          size: 22,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -253,11 +262,14 @@ class SettingsScreen extends StatelessWidget {
                               const SizedBox(height: 12),
                               DecoratedBox(
                                 decoration: BoxDecoration(
-                                  color: cs.surfaceContainerHighest
-                                      .withValues(alpha: 0.55),
+                                  color: cs.surfaceContainerHighest.withValues(
+                                    alpha: 0.55,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: cs.outlineVariant.withValues(alpha: 0.6),
+                                    color: cs.outlineVariant.withValues(
+                                      alpha: 0.6,
+                                    ),
                                   ),
                                 ),
                                 child: Padding(
@@ -273,11 +285,12 @@ class SettingsScreen extends StatelessWidget {
                                       Expanded(
                                         child: Text(
                                           displayPath,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            fontFamily: 'monospace',
-                                            fontSize: 11.5,
-                                            height: 1.35,
-                                          ),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                fontFamily: 'monospace',
+                                                fontSize: 11.5,
+                                                height: 1.35,
+                                              ),
                                         ),
                                       ),
                                     ],
@@ -295,8 +308,8 @@ class SettingsScreen extends StatelessWidget {
                         Expanded(
                           child: FilledButton.tonalIcon(
                             onPressed: () async {
-                              final picked =
-                                  await FilePicker.platform.getDirectoryPath();
+                              final picked = await FilePicker.platform
+                                  .getDirectoryPath();
                               if (picked == null || !context.mounted) return;
                               try {
                                 await context
@@ -305,7 +318,9 @@ class SettingsScreen extends StatelessWidget {
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('settings_folder_updated'.tr()),
+                                    content: Text(
+                                      'settings_folder_updated'.tr(),
+                                    ),
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );
@@ -313,14 +328,18 @@ class SettingsScreen extends StatelessWidget {
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content:
-                                        Text('settings_invalid_folder'.tr()),
+                                    content: Text(
+                                      'settings_invalid_folder'.tr(),
+                                    ),
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );
                               }
                             },
-                            icon: const Icon(Icons.folder_open_rounded, size: 20),
+                            icon: const Icon(
+                              Icons.folder_open_rounded,
+                              size: 20,
+                            ),
                             label: Text('settings_choose_folder'.tr()),
                           ),
                         ),

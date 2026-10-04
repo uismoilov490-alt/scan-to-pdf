@@ -24,6 +24,9 @@ import 'features/image_convert_screen.dart';
 import 'features/translate_screen.dart';
 import 'features/document_clean_screen.dart';
 import '../widgets/subscription_sheet.dart';
+import '../services/ad_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/subscription_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -83,10 +86,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (pages.isEmpty || !mounted) return;
       await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => PreviewScreen(pages: pages, enhance: false, autoClean: true)),
+        MaterialPageRoute(
+          builder: (_) =>
+              PreviewScreen(pages: pages, enhance: false, autoClean: true),
+        ),
       );
     } on PlatformException catch (e) {
-      if ((e.message ?? '').contains('cancelled')) return; // foydalanuvchi bekor qildi
+      if ((e.message ?? '').contains('cancelled'))
+        return; // foydalanuvchi bekor qildi
       if (!mounted) return;
       await Navigator.push(
         context,
@@ -162,11 +169,36 @@ class _HomeScreenState extends State<HomeScreen> {
   /// "Rasm konvertori": 5 ta rasm formati funksiyasidan birini tanlash.
   Future<void> _openImageConverters() async {
     final items = <(ConvertMode, IconData, Color, String)>[
-      (ConvertMode.jpgToPdf, Icons.picture_as_pdf_rounded, const Color(0xFFDB2777), 'conv_hint_jpg_to_pdf'),
-      (ConvertMode.pdfToJpg, Icons.image_rounded, const Color(0xFFEA580C), 'conv_hint_pdf_to_jpg'),
-      (ConvertMode.webpToJpg, Icons.public_rounded, const Color(0xFF0EA5E9), 'conv_hint_webp_to_jpg'),
-      (ConvertMode.pngToJpg, Icons.transform_rounded, const Color(0xFF65A30D), 'conv_hint_png_to_jpg'),
-      (ConvertMode.jpgToPng, Icons.wallpaper_rounded, const Color(0xFF8B5CF6), 'conv_hint_jpg_to_png'),
+      (
+        ConvertMode.jpgToPdf,
+        Icons.picture_as_pdf_rounded,
+        const Color(0xFFDB2777),
+        'conv_hint_jpg_to_pdf',
+      ),
+      (
+        ConvertMode.pdfToJpg,
+        Icons.image_rounded,
+        const Color(0xFFEA580C),
+        'conv_hint_pdf_to_jpg',
+      ),
+      (
+        ConvertMode.webpToJpg,
+        Icons.public_rounded,
+        const Color(0xFF0EA5E9),
+        'conv_hint_webp_to_jpg',
+      ),
+      (
+        ConvertMode.pngToJpg,
+        Icons.transform_rounded,
+        const Color(0xFF65A30D),
+        'conv_hint_png_to_jpg',
+      ),
+      (
+        ConvertMode.jpgToPng,
+        Icons.wallpaper_rounded,
+        const Color(0xFF8B5CF6),
+        'conv_hint_jpg_to_png',
+      ),
     ];
     final mode = await showModalBottomSheet<ConvertMode>(
       context: context,
@@ -182,8 +214,12 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text('feature_image_converter'.tr(),
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text(
+                'feature_image_converter'.tr(),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
             ),
             for (final (m, icon, color, hint) in items)
               ListTile(
@@ -191,7 +227,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   backgroundColor: color.withValues(alpha: 0.15),
                   child: Icon(icon, color: color),
                 ),
-                title: Text(m.titleKey.tr(), style: const TextStyle(fontWeight: FontWeight.w600)),
+                title: Text(
+                  m.titleKey.tr(),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 subtitle: Text(hint.tr()),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.pop(ctx, m),
@@ -222,9 +261,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openRegister() async {
     Navigator.pop(context);
-    await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const RegisterScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const RegisterScreen()));
     if (mounted) _loadUser();
   }
 
@@ -314,10 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _sharePdf(File file) async {
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'pdf_document'.tr(),
-    );
+    await Share.shareXFiles([XFile(file.path)], text: 'pdf_document'.tr());
   }
 
   Future<void> _deletePdf(File file) async {
@@ -404,17 +440,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Theme.of(context).colorScheme.primaryContainer
-                                  : Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHigh,
+                                  ? Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isSelected
                                     ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .outlineVariant,
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.outlineVariant,
                                 width: 1.2,
                               ),
                             ),
@@ -427,7 +465,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         lang.title,
@@ -439,9 +478,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Text(
                                         lang.subtitle,
                                         style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -454,9 +493,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       : Icons.radio_button_off,
                                   color: isSelected
                                       ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                 ),
                               ],
                             ),
@@ -495,311 +534,366 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       drawer: _buildAppDrawer(theme),
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-        title: Text(
-          'app_title'.tr(),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onPrimary,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton.icon(
-              onPressed: _showLanguagePicker,
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: Text(_selectedLanguage.flag),
-              label: Text(_selectedLanguage.shortCode),
-            ),
-          ),
-        ],
+      body: SafeArea(
+        bottom: false,
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildHomeContent(theme),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildHomeContent(theme),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openScanner,
-        icon: const Icon(Icons.document_scanner),
-        label: Text('scan'.tr()),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-      ),
+      bottomNavigationBar: const AdBanner(),
+      floatingActionButton: _ScanFab(onPressed: _openScanner),
     );
   }
 
-  // Funksiyalar va hujjatlar bitta umumiy scroll'da — funksiyalar ko'payganda
-  // ham ekranga sig'maslik (overflow) bo'lmaydi.
+  // Sarlavha, funksiyalar va so'nggi fayllar bitta umumiy scroll'da.
   Widget _buildHomeContent(ThemeData theme) {
     return CustomScrollView(
       slivers: [
+        SliverToBoxAdapter(child: _buildHeader(theme)),
         SliverToBoxAdapter(child: _buildFeatureGrid(theme)),
         if (_pdfs.isEmpty)
-          SliverFillRemaining(hasScrollBody: false, child: _buildEmptyState(theme))
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(theme),
+          )
         else
           _buildPdfList(theme),
       ],
     );
   }
 
+  Widget _buildHeader(ThemeData theme) {
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Builder(
+                builder: (ctx) => IconButton(
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                  icon: const Icon(Icons.menu_rounded, size: 28),
+                ),
+              ),
+              const Spacer(),
+              Material(
+                color: cs.surfaceContainerLow,
+                shape: StadiumBorder(
+                  side: BorderSide(color: cs.outlineVariant),
+                ),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: _showLanguagePicker,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.language_rounded,
+                          size: 20,
+                          color: cs.onSurface,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _selectedLanguage.shortCode,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 14, 0, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'app_title'.tr(),
+                  style: const TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome, size: 13, color: cs.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'home_ai_powered'.tr(),
+                        style: TextStyle(
+                          color: cs.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                _SmartScanCard(onTap: _openScanner),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFeatureGrid(ThemeData theme) {
+    // 1-qator: skanerlash; 2-qator: AI funksiyalari; qolganlari — oflayn vositalar.
     final features = <_QuickFeature>[
       _QuickFeature(
         title: 'feature_document'.tr(),
-        icon: Icons.document_scanner_rounded,
-        gradientStart: const Color(0xFF1E3A5F),
-        gradientEnd: const Color(0xFF3D6BA8),
+        icon: Icons.document_scanner_outlined,
+        color: const Color(0xFF0A84FF),
         onTap: _openScanner,
       ),
       _QuickFeature(
         title: 'feature_passport'.tr(),
-        icon: Icons.contact_page_rounded,
-        gradientStart: const Color(0xFF134E4A),
-        gradientEnd: const Color(0xFF2D6A4F),
+        icon: Icons.badge_outlined,
+        color: const Color(0xFF0066CC),
         onTap: () => _openOverlayCamera(ScanOverlayMode.passport),
       ),
       _QuickFeature(
         title: 'feature_id_card'.tr(),
-        icon: Icons.perm_contact_calendar_rounded,
-        gradientStart: const Color(0xFF3730A3),
-        gradientEnd: const Color(0xFF6366F1),
+        icon: Icons.credit_card_outlined,
+        color: const Color(0xFF5856D6),
         onTap: () => _openOverlayCamera(ScanOverlayMode.idCard),
       ),
       _QuickFeature(
+        title: 'feature_extract_text'.tr(),
+        icon: Icons.text_snippet_outlined,
+        color: const Color(0xFFFF9500),
+        onTap: _openOcr,
+        ai: true,
+      ),
+      _QuickFeature(
+        title: 'translit_feature_both'.tr(),
+        label: 'Я⇄A',
+        color: const Color(0xFFAF52DE),
+        onTap: _openTransliteration,
+        ai: true,
+      ),
+      _QuickFeature(
+        title: 'feature_translate'.tr(),
+        icon: Icons.language_rounded,
+        color: const Color(0xFFBF5AF2),
+        onTap: _openTranslate,
+        ai: true,
+      ),
+      _QuickFeature(
         title: 'feature_clean'.tr(),
-        icon: Icons.auto_fix_high_rounded,
-        gradientStart: const Color(0xFF0E7490),
-        gradientEnd: const Color(0xFF22D3EE),
+        icon: Icons.auto_fix_high_outlined,
+        color: const Color(0xFF32ADE6),
         onTap: _openClean,
       ),
       _QuickFeature(
-        title: 'feature_extract_text'.tr(),
-        icon: Icons.chrome_reader_mode,
-        gradientStart: const Color(0xFF92400E),
-        gradientEnd: const Color(0xFFD97706),
-        onTap: _openOcr,
-      ),
-      _QuickFeature(
         title: 'feature_pdf_edit'.tr(),
-        icon: Icons.picture_as_pdf_rounded,
-        gradientStart: const Color(0xFF7F1D1D),
-        gradientEnd: const Color(0xFFB91C1C),
+        icon: Icons.edit_document,
+        color: const Color(0xFFFF3B30),
         onTap: _openPdfEdit,
       ),
       _QuickFeature(
         title: 'feature_pdf_compress'.tr(),
-        icon: Icons.folder_zip_rounded,
-        gradientStart: const Color(0xFF0E7490),
-        gradientEnd: const Color(0xFF0891B2),
+        icon: Icons.compress_rounded,
+        color: const Color(0xFF30B0C7),
         onTap: _openPdfCompress,
       ),
       _QuickFeature(
         title: 'feature_word_to_pdf'.tr(),
-        icon: Icons.article_rounded,
-        gradientStart: const Color(0xFF1E3A8A),
-        gradientEnd: const Color(0xFF2563EB),
+        icon: Icons.description_outlined,
+        color: const Color(0xFF34C759),
         onTap: _openWordToPdf,
       ),
       _QuickFeature(
         title: 'feature_pdf_to_word'.tr(),
-        icon: Icons.import_export_rounded,
-        gradientStart: const Color(0xFF064E3B),
-        gradientEnd: const Color(0xFF059669),
+        icon: Icons.swap_horiz_rounded,
+        color: const Color(0xFF248A3D),
         onTap: _openPdfToWord,
       ),
       _QuickFeature(
-        title: 'translit_feature_both'.tr(),
-        icon: Icons.translate_rounded,
-        gradientStart: const Color(0xFF5B21B6),
-        gradientEnd: const Color(0xFF7C3AED),
-        onTap: _openTransliteration,
-      ),
-      _QuickFeature(
-        title: 'feature_translate'.tr(),
-        icon: Icons.g_translate_rounded,
-        gradientStart: const Color(0xFF0F766E),
-        gradientEnd: const Color(0xFF14B8A6),
-        onTap: _openTranslate,
-      ),
-      _QuickFeature(
         title: 'feature_image_converter'.tr(),
-        icon: Icons.photo_library_rounded,
-        gradientStart: const Color(0xFF9D174D),
-        gradientEnd: const Color(0xFFDB2777),
+        icon: Icons.image_outlined,
+        color: const Color(0xFFFFCC00),
+        iconColor: const Color(0xFF1C1C1E),
         onTap: _openImageConverters,
       ),
     ];
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(14, 14, 14, 8),
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(
-            alpha: theme.brightness == Brightness.dark ? 0.55 : 0.35,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: theme.brightness == Brightness.dark ? 0.45 : 0.06,
-            ),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: theme.colorScheme.primary.withValues(
-              alpha: theme.brightness == Brightness.dark ? 0.12 : 0.06,
-            ),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 24, 14, 8),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
         itemCount: features.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 14,
-          childAspectRatio: 0.88,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.02,
         ),
-        itemBuilder: (context, index) {
-          return _ProFeatureTile(feature: features[index]);
-        },
+        itemBuilder: (context, index) => _FeatureTile(feature: features[index]),
       ),
     );
   }
 
   Widget _buildAppDrawer(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final isPro = context.watch<SubscriptionProvider>().isPro;
+    final width = MediaQuery.sizeOf(context).width;
     return Drawer(
+      width: width * 0.88,
+      backgroundColor: cs.surface,
       child: SafeArea(
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
           children: [
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _user == null ? _openRegister : null,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.colorScheme.primary,
-                        theme.colorScheme.primary.withValues(alpha: 0.86),
+            // Hisob
+            _MenuGroup(
+              children: [
+                InkWell(
+                  onTap: _user == null ? _openRegister : null,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        _UserAvatar(user: _user),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _user != null
+                                    ? _user!.displayIdentifier
+                                    : 'drawer_account'.tr(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: cs.onSurfaceVariant,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _user != null
+                                    ? _user!.name
+                                    : 'drawer_guest_user'.tr(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_user == null)
+                          Icon(Icons.chevron_right_rounded, color: cs.outline),
                       ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      _UserAvatar(user: _user),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _user != null
-                                  ? _user!.displayIdentifier
-                                  : 'drawer_login_profile'.tr(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _user != null
-                                  ? _user!.name
-                                  : 'drawer_guest_user'.tr(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                    ],
-                  ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 8),
-            _DrawerMenuTile(
-              icon: Icons.workspace_premium_rounded,
-              title: 'profile_my_subscriptions'.tr(),
-              subtitle: 'profile_my_subscriptions_subtitle'.tr(),
+            const SizedBox(height: 16),
+            _PremiumCard(
+              isPro: isPro,
               onTap: () {
                 Navigator.pop(context);
                 _openSubscriptionsSheet();
               },
             ),
-            _DrawerMenuTile(
-              icon: Icons.folder_special_rounded,
-              title: 'profile_saved_documents'.tr(),
-              subtitle: 'profile_saved_documents_subtitle'.tr(),
-              onTap: _openSavedDocuments,
+            const SizedBox(height: 16),
+            _MenuGroup(
+              children: [
+                _MenuRow(
+                  icon: Icons.folder_outlined,
+                  tint: const Color(0xFF0A84FF),
+                  title: 'profile_saved_documents'.tr(),
+                  subtitle: 'profile_saved_documents_subtitle'.tr(),
+                  onTap: _openSavedDocuments,
+                ),
+                _MenuRow(
+                  icon: Icons.tune_rounded,
+                  tint: const Color(0xFF8E8E93),
+                  title: 'settings_title'.tr(),
+                  subtitle: 'settings_drawer_subtitle'.tr(),
+                  onTap: () {
+                    Navigator.pop(context);
+                    WidgetsBinding.instance.addPostFrameCallback((_) async {
+                      if (!context.mounted) return;
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                      if (context.mounted) _loadPdfs();
+                    });
+                  },
+                ),
+                _MenuRow(
+                  icon: Icons.share_outlined,
+                  tint: const Color(0xFF34C759),
+                  title: 'drawer_share'.tr(),
+                  subtitle: 'drawer_share_subtitle'.tr(),
+                  onTap: () => Navigator.pop(context),
+                ),
+                _MenuRow(
+                  icon: Icons.description_outlined,
+                  tint: const Color(0xFF8E8E93),
+                  title: 'drawer_terms'.tr(),
+                  subtitle: 'drawer_terms_subtitle'.tr(),
+                  onTap: () => Navigator.pop(context),
+                ),
+              ],
             ),
-            _DrawerMenuTile(
-              icon: Icons.logout_rounded,
-              title: 'profile_logout'.tr(),
-              subtitle: 'profile_logout_subtitle'.tr(),
-              onTap: _signOut,
-            ),
-            _DrawerMenuTile(
-              icon: Icons.settings_outlined,
-              title: 'settings_title'.tr(),
-              subtitle: 'settings_drawer_subtitle'.tr(),
-              onTap: () {
-                Navigator.pop(context);
-                WidgetsBinding.instance.addPostFrameCallback((_) async {
-                  if (!context.mounted) return;
-                  await Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SettingsScreen(),
-                    ),
-                  );
-                  if (context.mounted) _loadPdfs();
-                });
-              },
-            ),
-            _DrawerMenuTile(
-              icon: Icons.share_outlined,
-              title: 'drawer_share'.tr(),
-              subtitle: 'drawer_share_subtitle'.tr(),
-              onTap: () => Navigator.pop(context),
-            ),
-            _DrawerMenuTile(
-              icon: Icons.description_outlined,
-              title: 'drawer_terms'.tr(),
-              subtitle: 'drawer_terms_subtitle'.tr(),
-              onTap: () => Navigator.pop(context),
-            ),
+            if (_user != null) ...[
+              const SizedBox(height: 16),
+              _MenuGroup(
+                children: [
+                  _MenuRow(
+                    icon: Icons.logout_rounded,
+                    tint: const Color(0xFFFF3B30),
+                    title: 'profile_logout'.tr(),
+                    subtitle: 'profile_logout_subtitle'.tr(),
+                    danger: true,
+                    showChevron: false,
+                    onTap: _signOut,
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -809,200 +903,430 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildEmptyState(ThemeData theme) {
     // Pastdagi "Skanerlash" tugmasi yozuvni to'smasligi uchun joy qoldiramiz
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 96),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 110),
       child: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.document_scanner_outlined,
-            size: 90,
-            color: theme.colorScheme.primary.withValues(alpha: 0.35),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'no_documents'.tr(),
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.document_scanner_outlined,
+              size: 64,
+              color: theme.colorScheme.primary.withValues(alpha: 0.35),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'no_documents_hint'.tr(),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+            const SizedBox(height: 14),
+            Text(
+              'no_documents'.tr(),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 6),
+            Text(
+              'no_documents_hint'.tr(),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.85,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPdfList(ThemeData theme) {
+    final cs = theme.colorScheme;
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-      sliver: SliverList.builder(
-      itemCount: _pdfs.length,
-      itemBuilder: (context, index) {
-        final file = _pdfs[index];
-        final stat = file.statSync();
-        final name = file.path.split('/').last.replaceAll('.pdf', '');
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+      sliver: SliverList.list(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 6, bottom: 10),
+            child: Text(
+              'home_recent'.tr(),
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
+            ),
           ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => _viewPdf(file),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
+          _MenuGroup(
+            children: [for (final file in _pdfs) _pdfRow(theme, file)],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pdfRow(ThemeData theme, File file) {
+    final cs = theme.colorScheme;
+    final stat = file.statSync();
+    final name = file.path.split('/').last;
+    return InkWell(
+      onTap: () => _viewPdf(file),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF3B30).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.insert_drive_file_outlined,
+                color: Color(0xFFFF3B30),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 50,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.picture_as_pdf,
-                      color: theme.colorScheme.primary,
-                      size: 30,
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDate(stat.modified),
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          _formatSize(stat.size),
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.8),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (val) {
-                      if (val == 'view') _viewPdf(file);
-                      if (val == 'share') _sharePdf(file);
-                      if (val == 'delete') _deletePdf(file);
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'view',
-                        child: ListTile(
-                          leading: const Icon(Icons.visibility),
-                          title: Text('view'.tr()),
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'share',
-                        child: ListTile(
-                          leading: const Icon(Icons.share),
-                          title: Text('share'.tr()),
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: ListTile(
-                          leading: const Icon(Icons.delete, color: Colors.red),
-                          title: Text(
-                            'delete'.tr(),
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 3),
+                  Text(
+                    '${_formatDate(stat.modified)} · ${_formatSize(stat.size)}',
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      },
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_horiz_rounded, color: cs.outline),
+              onSelected: (val) {
+                if (val == 'view') _viewPdf(file);
+                if (val == 'share') _sharePdf(file);
+                if (val == 'delete') _deletePdf(file);
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'view',
+                  child: ListTile(
+                    leading: const Icon(Icons.visibility_outlined),
+                    title: Text('view'.tr()),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'share',
+                  child: ListTile(
+                    leading: const Icon(Icons.share_outlined),
+                    title: Text('share'.tr()),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.red,
+                    ),
+                    title: Text(
+                      'delete'.tr(),
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _DrawerMenuTile extends StatelessWidget {
+/// "AI Smart Scan" — asosiy skanerni ochuvchi katta karta.
+class _SmartScanCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _SmartScanCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.primaryContainer,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'home_smart_title'.tr(),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'home_smart_desc'.tr(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.35,
+                        color: cs.onPrimaryContainer.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: cs.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pastdagi ko'k "Skanerlash" tugmasi.
+class _ScanFab extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _ScanFab({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: [
+          BoxShadow(
+            color: cs.primary.withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: FloatingActionButton.extended(
+        onPressed: onPressed,
+        elevation: 0,
+        highlightElevation: 0,
+        shape: const StadiumBorder(),
+        backgroundColor: cs.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.center_focus_weak_rounded),
+        label: Text(
+          'scan'.tr(),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
+/// Oq, yumaloq burchakli guruh (ichidagi qatorlar orasida chiziq).
+class _MenuGroup extends StatelessWidget {
+  final List<Widget> children;
+
+  const _MenuGroup({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final items = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (i > 0)
+        items.add(
+          Divider(height: 1, thickness: 1, color: cs.surfaceContainerHigh),
+        );
+      items.add(children[i]);
+    }
+    return Material(
+      color: cs.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: items),
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
   final IconData icon;
+  final Color tint;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final bool danger;
+  final bool showChevron;
 
-  const _DrawerMenuTile({
+  const _MenuRow({
     required this.icon,
+    required this.tint,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.danger = false,
+    this.showChevron = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
-      child: Material(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-        child: ListTile(
-          onTap: onTap,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-          leading: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: tint.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: tint, size: 22),
             ),
-            child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 21),
-          ),
-          title: Text(
-            title,
-            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 12,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: danger ? tint : cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
-          ),
-          trailing: Icon(
-            Icons.chevron_right_rounded,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            if (showChevron)
+              Icon(Icons.chevron_right_rounded, color: cs.outline),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Menyudagi oltin rangli Premium kartasi.
+class _PremiumCard extends StatelessWidget {
+  final bool isPro;
+  final VoidCallback onTap;
+
+  const _PremiumCard({required this.isPro, required this.onTap});
+
+  static const gold = Color(0xFFE8C774);
+  static const goldDark = Color(0xFFD4B261);
+  static const brown = Color(0xFF4A3216);
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: gold,
+      borderRadius: BorderRadius.circular(24),
+      elevation: 6,
+      shadowColor: gold.withValues(alpha: 0.6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 14, 18),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: goldDark,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: brown,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (isPro ? 'drawer_premium_active' : 'drawer_premium').tr(),
+                      style: const TextStyle(
+                        color: brown,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'drawer_premium_desc'.tr(),
+                      style: TextStyle(
+                        color: brown.withValues(alpha: 0.75),
+                        fontSize: 13,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              FilledButton(
+                onPressed: onTap,
+                style: FilledButton.styleFrom(
+                  backgroundColor: brown,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  shape: const StadiumBorder(),
+                ),
+                child: Text(
+                  (isPro ? 'drawer_manage' : 'drawer_upgrade').tr(),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1012,140 +1336,106 @@ class _DrawerMenuTile extends StatelessWidget {
 
 class _QuickFeature {
   final String title;
-  final IconData icon;
-  final Color gradientStart;
-  final Color gradientEnd;
+  final IconData? icon;
+
+  /// Ikonka o'rniga matn (masalan "Я⇄A")
+  final String? label;
+  final Color color;
+  final Color iconColor;
   final VoidCallback onTap;
+
+  /// AI (server) ishlatadigan funksiya — ikonkada yulduzcha belgisi chiqadi
+  final bool ai;
 
   _QuickFeature({
     required this.title,
-    required this.icon,
-    required this.gradientStart,
-    required this.gradientEnd,
+    required this.color,
     required this.onTap,
+    this.icon,
+    this.label,
+    this.iconColor = Colors.white,
+    this.ai = false,
   });
 }
 
-/// Premium grid tile: gradient gem-style icon chip + restrained typography.
-class _ProFeatureTile extends StatelessWidget {
+class _FeatureTile extends StatelessWidget {
   final _QuickFeature feature;
 
-  const _ProFeatureTile({required this.feature});
+  const _FeatureTile({required this.feature});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    final shadowColor = Color.lerp(
-      feature.gradientEnd,
-      Colors.black,
-      isDark ? 0.55 : 0.35,
-    )!;
-    final highlight = Color.lerp(
-      feature.gradientStart,
-      isDark ? cs.surface : Colors.white,
-      isDark ? 0.14 : 0.08,
-    )!;
-    final rim = (isDark ? cs.onPrimary : Colors.white).withValues(
-      alpha: isDark ? 0.18 : 0.28,
-    );
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: feature.onTap,
-        borderRadius: BorderRadius.circular(14),
-        splashColor: feature.gradientEnd.withValues(alpha: 0.12),
-        highlightColor: feature.gradientEnd.withValues(alpha: 0.06),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: feature.onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Stack(
+            clipBehavior: Clip.none,
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 68,
+                height: 68,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(17),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      highlight,
-                      feature.gradientEnd,
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: shadowColor.withValues(alpha: isDark ? 0.5 : 0.38),
-                      blurRadius: 14,
-                      offset: const Offset(0, 8),
-                      spreadRadius: -2,
-                    ),
-                  ],
-                  border: Border.all(
-                    color: rim,
-                    width: 1,
-                  ),
+                  color: feature.color,
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      top: 7,
-                      left: 10,
-                      child: IgnorePointer(
-                        child: Container(
-                          width: 22,
-                          height: 11,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.42),
-                                Colors.white.withValues(alpha: 0),
-                              ],
-                            ),
-                          ),
+                alignment: Alignment.center,
+                child: feature.label != null
+                    ? Text(
+                        feature.label!,
+                        style: TextStyle(
+                          color: feature.iconColor,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
                         ),
-                      ),
-                    ),
-                    Icon(
-                      feature.icon,
-                      size: 28,
-                      color: Colors.white.withValues(alpha: 0.96),
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withValues(alpha: 0.22),
-                          blurRadius: 4,
+                      )
+                    : Icon(feature.icon, color: feature.iconColor, size: 30),
+              ),
+              if (feature.ai)
+                Positioned(
+                  top: -7,
+                  right: -7,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerLow,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                  ],
+                    child: Icon(
+                      Icons.auto_awesome,
+                      size: 14,
+                      color: feature.color,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                feature.title,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                  letterSpacing: 0.15,
-                  color: cs.onSurface,
-                ),
-              ),
             ],
           ),
-        ),
+          const SizedBox(height: 10),
+          Text(
+            feature.title,
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: cs.onSurface,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1158,49 +1448,53 @@ class _UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     if (user?.photoUrl != null) {
       return ClipOval(
         child: Image.network(
           user!.photoUrl!,
-          width: 52,
-          height: 52,
+          width: 56,
+          height: 56,
           fit: BoxFit.cover,
-          errorBuilder: (ctx, err, st) => _defaultAvatar(),
+          errorBuilder: (ctx, err, st) => _defaultAvatar(cs),
         ),
       );
     }
     if (user != null && user!.name.isNotEmpty) {
       return Container(
-        width: 52,
-        height: 52,
+        width: 56,
+        height: 56,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.25),
+          color: cs.primaryContainer,
           shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
         child: Text(
           user!.name[0].toUpperCase(),
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: cs.primary,
             fontSize: 22,
             fontWeight: FontWeight.w800,
           ),
         ),
       );
     }
-    return _defaultAvatar();
+    return _defaultAvatar(cs);
   }
 
-  Widget _defaultAvatar() {
+  Widget _defaultAvatar(ColorScheme cs) {
     return Container(
-      width: 52,
-      height: 52,
+      width: 56,
+      height: 56,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
+        color: cs.surfaceContainerHigh,
         shape: BoxShape.circle,
       ),
-      child: const Icon(Icons.person, color: Colors.white, size: 28),
+      child: Icon(
+        Icons.person_outline_rounded,
+        color: cs.onSurfaceVariant,
+        size: 28,
+      ),
     );
   }
 }
-

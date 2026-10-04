@@ -27,7 +27,8 @@ class DocumentCleanScreen extends StatefulWidget {
 
 class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
   final List<Uint8List> _originals = [];
-  final Map<int, Uint8List> _previewCache = {}; // tanlangan sahifaning tozalangan ko'rinishi
+  final Map<int, Uint8List> _previewCache =
+      {}; // tanlangan sahifaning tozalangan ko'rinishi
   String _baseName = 'Hujjat';
   CleanMode _mode = CleanMode.color;
   bool _crop = true;
@@ -89,7 +90,8 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
           for (final f in r?.files ?? <PlatformFile>[]) {
             if (f.path != null) pages.add(await File(f.path!).readAsBytes());
           }
-          if (pages.isNotEmpty) _baseName = p.basenameWithoutExtension(r!.files.first.path!);
+          if (pages.isNotEmpty)
+            _baseName = p.basenameWithoutExtension(r!.files.first.path!);
         case 'pdf':
           final saved = await PdfService.listSavedPdfs();
           if (!mounted) return;
@@ -99,7 +101,10 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
             _baseName = p.basenameWithoutExtension(pdf.path);
           }
         case 'camera':
-          final shot = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 95);
+          final shot = await ImagePicker().pickImage(
+            source: ImageSource.camera,
+            imageQuality: 95,
+          );
           if (shot != null) {
             pages.add(await File(shot.path).readAsBytes());
             _baseName = 'Hujjat';
@@ -151,7 +156,11 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
     if (_originals.isEmpty) return;
     final index = _selected;
     setState(() => _previewing = true);
-    final out = await DocumentCleaner.clean(_originals[index], mode: _mode, crop: _crop);
+    final out = await DocumentCleaner.clean(
+      _originals[index],
+      mode: _mode,
+      crop: _crop,
+    );
     if (!mounted) return;
     setState(() {
       if (out != null) _previewCache[index] = out;
@@ -177,8 +186,12 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
     for (var i = 0; i < _originals.length; i++) {
       if (!mounted) break;
       setState(() => _done = i + 1);
-      final out = _previewCache[i] ?? await DocumentCleaner.clean(_originals[i], mode: _mode, crop: _crop);
-      final f = File('${tmp.path}/clean_${DateTime.now().microsecondsSinceEpoch}_$i.jpg');
+      final out =
+          _previewCache[i] ??
+          await DocumentCleaner.clean(_originals[i], mode: _mode, crop: _crop);
+      final f = File(
+        '${tmp.path}/clean_${DateTime.now().microsecondsSinceEpoch}_$i.jpg',
+      );
       await f.writeAsBytes(out ?? _originals[i]);
       files.add(f);
     }
@@ -244,8 +257,6 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: cs.primary,
-        foregroundColor: cs.onPrimary,
         title: Text('feature_clean'.tr()),
         actions: [
           if (_originals.isNotEmpty)
@@ -256,7 +267,9 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
             ),
         ],
       ),
-      body: _originals.isEmpty ? _buildEmpty(cs) : _buildEditor(theme, cs, busy),
+      body: _originals.isEmpty
+          ? _buildEmpty(cs)
+          : _buildEditor(theme, cs, busy),
     );
   }
 
@@ -267,17 +280,32 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_fix_high_rounded, size: 84, color: cs.primary.withValues(alpha: 0.4)),
+            Icon(
+              Icons.auto_fix_high_rounded,
+              size: 84,
+              color: cs.primary.withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 16),
-            Text('clean_empty_title'.tr(),
-                textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            Text(
+              'clean_empty_title'.tr(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
-            Text('clean_empty_hint'.tr(), textAlign: TextAlign.center, style: TextStyle(color: cs.onSurfaceVariant)),
+            Text(
+              'clean_empty_hint'.tr(),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: cs.onSurfaceVariant),
+            ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _loading ? null : _pickSource,
               icon: _loading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.add_photo_alternate_outlined),
               label: Text('clean_pick'.tr()),
               style: FilledButton.styleFrom(minimumSize: const Size(220, 52)),
@@ -290,7 +318,9 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
 
   Widget _buildEditor(ThemeData theme, ColorScheme cs, bool busy) {
     final cleaned = _previewCache[_selected];
-    final shown = _showOriginal || cleaned == null ? _originals[_selected] : cleaned;
+    final shown = _showOriginal || cleaned == null
+        ? _originals[_selected]
+        : cleaned;
 
     return Column(
       children: [
@@ -307,13 +337,19 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
                       color: cs.surfaceContainerHighest,
                       child: InteractiveViewer(
                         maxScale: 5,
-                        child: Image.memory(shown, fit: BoxFit.contain, gaplessPlayback: true),
+                        child: Image.memory(
+                          shown,
+                          fit: BoxFit.contain,
+                          gaplessPlayback: true,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 if (_previewing)
-                  const Positioned.fill(child: Center(child: CircularProgressIndicator())),
+                  const Positioned.fill(
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
                 Positioned(
                   top: 10,
                   left: 10,
@@ -323,12 +359,19 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
                       visualDensity: VisualDensity.compact,
                     ),
                     segments: [
-                      ButtonSegment(value: true, label: Text('clean_before'.tr())),
-                      ButtonSegment(value: false, label: Text('clean_after'.tr())),
+                      ButtonSegment(
+                        value: true,
+                        label: Text('clean_before'.tr()),
+                      ),
+                      ButtonSegment(
+                        value: false,
+                        label: Text('clean_after'.tr()),
+                      ),
                     ],
                     selected: {_showOriginal},
                     showSelectedIcon: false,
-                    onSelectionChanged: (s) => setState(() => _showOriginal = s.first),
+                    onSelectionChanged: (s) =>
+                        setState(() => _showOriginal = s.first),
                   ),
                 ),
               ],
@@ -354,10 +397,17 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
                   width: 54,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: i == _selected ? cs.primary : cs.outlineVariant, width: i == _selected ? 3 : 1),
+                    border: Border.all(
+                      color: i == _selected ? cs.primary : cs.outlineVariant,
+                      width: i == _selected ? 3 : 1,
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: Image.memory(_originals[i], fit: BoxFit.cover, cacheWidth: 120),
+                  child: Image.memory(
+                    _originals[i],
+                    fit: BoxFit.cover,
+                    cacheWidth: 120,
+                  ),
                 ),
               ),
             ),
@@ -374,13 +424,24 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
               children: [
                 SegmentedButton<CleanMode>(
                   segments: [
-                    ButtonSegment(value: CleanMode.color, label: Text('clean_mode_color'.tr())),
-                    ButtonSegment(value: CleanMode.gray, label: Text('clean_mode_gray'.tr())),
-                    ButtonSegment(value: CleanMode.bw, label: Text('clean_mode_bw'.tr())),
+                    ButtonSegment(
+                      value: CleanMode.color,
+                      label: Text('clean_mode_color'.tr()),
+                    ),
+                    ButtonSegment(
+                      value: CleanMode.gray,
+                      label: Text('clean_mode_gray'.tr()),
+                    ),
+                    ButtonSegment(
+                      value: CleanMode.bw,
+                      label: Text('clean_mode_bw'.tr()),
+                    ),
                   ],
                   selected: {_mode},
                   showSelectedIcon: false,
-                  onSelectionChanged: busy || _previewing ? null : (s) => _setOptions(mode: s.first),
+                  onSelectionChanged: busy || _previewing
+                      ? null
+                      : (s) => _setOptions(mode: s.first),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -388,7 +449,9 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
                   title: Text('clean_crop'.tr()),
                   subtitle: Text('clean_crop_hint'.tr()),
                   value: _crop,
-                  onChanged: busy || _previewing ? null : (v) => _setOptions(crop: v),
+                  onChanged: busy || _previewing
+                      ? null
+                      : (v) => _setOptions(crop: v),
                 ),
                 if (_savedPdf != null) ...[
                   Row(
@@ -403,7 +466,8 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: FilledButton.tonalIcon(
-                          onPressed: () => Share.shareXFiles([XFile(_savedPdf!.path)]),
+                          onPressed: () =>
+                              Share.shareXFiles([XFile(_savedPdf!.path)]),
                           icon: const Icon(Icons.share),
                           label: Text('share'.tr()),
                         ),
@@ -419,7 +483,9 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
                         onPressed: busy ? null : _saveToGallery,
                         icon: const Icon(Icons.photo_library_outlined),
                         label: Text('conv_save_gallery'.tr()),
-                        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 50)),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 50),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -427,12 +493,23 @@ class _DocumentCleanScreenState extends State<DocumentCleanScreen> {
                       child: FilledButton.icon(
                         onPressed: busy ? null : _savePdf,
                         icon: _saving
-                            ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary))
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: cs.onPrimary,
+                                ),
+                              )
                             : const Icon(Icons.picture_as_pdf_rounded),
-                        label: Text(_saving
-                            ? '$_done / ${_originals.length}'
-                            : 'clean_save_pdf'.tr()),
-                        style: FilledButton.styleFrom(minimumSize: const Size(0, 50)),
+                        label: Text(
+                          _saving
+                              ? '$_done / ${_originals.length}'
+                              : 'clean_save_pdf'.tr(),
+                        ),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 50),
+                        ),
                       ),
                     ),
                   ],

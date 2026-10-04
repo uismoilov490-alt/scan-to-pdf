@@ -101,12 +101,17 @@ class _OverlayCameraScreenState extends State<OverlayCameraScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.no_photography_outlined,
-                  size: 64, color: Colors.white54),
+              const Icon(
+                Icons.no_photography_outlined,
+                size: 64,
+                color: Colors.white54,
+              ),
               const SizedBox(height: 16),
-              Text(_error!,
-                  style: const TextStyle(color: Colors.white70),
-                  textAlign: TextAlign.center),
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
@@ -119,7 +124,8 @@ class _OverlayCameraScreenState extends State<OverlayCameraScreen> {
     }
     if (!_initialized) {
       return const Center(
-          child: CircularProgressIndicator(color: Colors.white));
+        child: CircularProgressIndicator(color: Colors.white),
+      );
     }
     return Stack(
       fit: StackFit.expand,
@@ -167,7 +173,9 @@ class _OverlayCameraScreenState extends State<OverlayCameraScreen> {
               color: Colors.white,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white70, width: 4),
-              boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+              boxShadow: const [
+                BoxShadow(color: Colors.black38, blurRadius: 8),
+              ],
             ),
             child: _capturing
                 ? const Padding(
@@ -193,12 +201,13 @@ class _OverlayPainter extends CustomPainter {
 
     // Semi-transparent overlay with cutout
     final overlayPaint = Paint()..color = Colors.black.withValues(alpha: 0.55);
-    final outer = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final outer = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
     final inner = Path()
       ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(8)));
     canvas.drawPath(
-        Path.combine(PathOperation.difference, outer, inner), overlayPaint);
+      Path.combine(PathOperation.difference, outer, inner),
+      overlayPaint,
+    );
 
     // White border around guide
     canvas.drawRRect(

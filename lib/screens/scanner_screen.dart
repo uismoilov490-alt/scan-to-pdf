@@ -80,8 +80,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
         title: Text(
           _pages.isEmpty
               ? 'add_image'.tr()
@@ -96,7 +94,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
               child: Text(
                 'continue_btn'.tr(),
                 style: TextStyle(
-                  color: theme.colorScheme.onPrimary,
+                  color: theme.colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -104,8 +102,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ],
       ),
       body: _pages.isEmpty ? _buildStartView(theme) : _buildPageList(theme),
-      bottomNavigationBar:
-          _pages.isNotEmpty ? _buildBottomBar(theme) : null,
+      bottomNavigationBar: _pages.isNotEmpty ? _buildBottomBar(theme) : null,
     );
   }
 
@@ -211,7 +208,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
               ReorderableDragStartListener(
                 index: index,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   child: Icon(
                     Icons.drag_handle,
                     color: theme.colorScheme.onSurfaceVariant,

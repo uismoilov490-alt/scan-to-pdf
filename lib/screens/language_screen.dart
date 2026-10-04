@@ -20,9 +20,9 @@ class _LanguageScreenState extends State<LanguageScreen> {
     await context.setLocale(_selected.locale);
     await LanguageService.markFirstLaunchDone();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
   }
 
   @override
@@ -123,7 +123,8 @@ class _LanguageScreenState extends State<LanguageScreen> {
                                     Text(
                                       lang.subtitle,
                                       style: TextStyle(
-                                        color: theme.colorScheme.onSurfaceVariant,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
                                         fontSize: 13,
                                       ),
                                     ),

@@ -116,8 +116,12 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text('edit_add_title'.tr(),
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text(
+                'edit_add_title'.tr(),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.image_outlined),
@@ -162,14 +166,19 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
           setState(() => _rendering = true);
           added = await _renderPdf(pdf);
         case _AddSource.camera:
-          final shot = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 92);
+          final shot = await ImagePicker().pickImage(
+            source: ImageSource.camera,
+            imageQuality: 92,
+          );
           if (shot != null) added = [_EditPage(image: File(shot.path))];
       }
       if (added.isEmpty || !mounted) return;
       setState(() => _pages.addAll(added));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('edit_pages_added'.tr(namedArgs: {'count': '${added.length}'})),
+          content: Text(
+            'edit_pages_added'.tr(namedArgs: {'count': '${added.length}'}),
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -198,7 +207,9 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('saved_as'.tr(namedArgs: {'name': file.path.split('/').last})),
+          content: Text(
+            'saved_as'.tr(namedArgs: {'name': file.path.split('/').last}),
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -225,8 +236,6 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
         title: Text('edit_title'.tr()),
         actions: [
           // Sahifalar ochilgach fayl almashtirish tepada — pastki tugmalarni to'smasin
@@ -315,7 +324,10 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
               const Spacer(),
               Text(
                 'edit_reorder_hint'.tr(),
-                style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -336,7 +348,9 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
               return Card(
                 key: ValueKey(page.id),
                 margin: const EdgeInsets.only(bottom: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Row(
@@ -363,7 +377,9 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'edit_page_label'.tr(namedArgs: {'number': '${index + 1}'}),
+                          'edit_page_label'.tr(
+                            namedArgs: {'number': '${index + 1}'},
+                          ),
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
@@ -372,12 +388,20 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: Icon(Icons.rotate_right, color: theme.colorScheme.primary),
-                        onPressed: () => setState(() => page.rotation = (page.rotation + 1) % 4),
+                        icon: Icon(
+                          Icons.rotate_right,
+                          color: theme.colorScheme.primary,
+                        ),
+                        onPressed: () => setState(
+                          () => page.rotation = (page.rotation + 1) % 4,
+                        ),
                         tooltip: 'edit_rotate'.tr(),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
                         onPressed: () => setState(() => _pages.removeAt(index)),
                         tooltip: 'delete'.tr(),
                       ),
@@ -400,7 +424,9 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
                     onPressed: _saving ? null : _addPages,
                     icon: const Icon(Icons.add_rounded),
                     label: Text('edit_add_btn'.tr()),
-                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 52)),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 52),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -418,7 +444,9 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
                           )
                         : const Icon(Icons.save),
                     label: Text(_saving ? 'edit_saving'.tr() : 'save'.tr()),
-                    style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 52),
+                    ),
                   ),
                 ),
               ],
