@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +10,7 @@ import 'package:pdf/pdf.dart' hide PdfDocument;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfx/pdfx.dart';
 import '../../services/pdf_service.dart';
+import '../../widgets/pdf_source_sheet.dart';
 
 class PdfCompressScreen extends StatefulWidget {
   const PdfCompressScreen({super.key});
@@ -24,6 +27,9 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
   bool _compressing = false;
   int? _originalSize;
   int? _compressedSize;
+  String? _outPath;
+  // Siqilgan nusxa kichraymadi (masalan, matnli PDF) — fayl saqlanmadi
+  bool _notSmaller = false;
 
   List<String> get _qualityLabels => [
     'compress_quality_low'.tr(),
@@ -50,47 +56,25 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
   }
 
   Future<void> _pickPdf() async {
-    if (_savedPdfs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('no_saved_pdf'.tr())),
-      );
-      return;
-    }
-
-    final selected = await showModalBottomSheet<File>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => ListView.builder(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(16),
-        itemCount: _savedPdfs.length,
-        itemBuilder: (_, i) {
-          final f = _savedPdfs[i];
-          return ListTile(
-            leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-            title: Text(f.path.split('/').last),
-            subtitle: Text(_formatSize(f.statSync().size)),
-            onTap: () => Navigator.pop(context, f),
-          );
-        },
-      ),
-    );
+    final selected = await pickPdf(context, _savedPdfs);
 
     if (selected == null) return;
     setState(() {
       _selectedPdf = selected;
       _originalSize = selected.statSync().size;
       _compressedSize = null;
+      _outPath = null;
+      _notSmaller = false;
     });
   }
 
   Future<void> _compress() async {
     if (_selectedPdf == null) return;
-    setState(() => _compressing = true);
+    setState(() {
+      _compressing = true;
+      _notSmaller = false;
+      _outPath = null;
+    });
 
     try {
       final document = await PdfDocument.openFile(_selectedPdf!.path);
@@ -140,11 +124,25 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
       final baseName =
           _selectedPdf!.path.split('/').last.replaceAll('.pdf', '');
       final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final bytes = await pdf.save();
+
+      // Sahifalar rasmga aylantiriladi — matnli PDF bunda kattalashadi.
+      // 5% dan kam yutuq bo'lsa saqlamaymiz, asl fayl qoladi.
+      if (bytes.length >= _originalSize! * 0.95) {
+        setState(() {
+          _notSmaller = true;
+          _compressing = false;
+        });
+        return;
+      }
+
       final outFile = File('${saveDir.path}/${baseName}_siqilgan_$now.pdf');
-      await outFile.writeAsBytes(await pdf.save());
+      await outFile.writeAsBytes(bytes);
 
       setState(() {
-        _compressedSize = outFile.statSync().size;
+        _compressedSize = bytes.length;
+        _outPath = outFile.path;
+        _notSmaller = false;
         _compressing = false;
       });
 
@@ -235,7 +233,7 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
                           : '—',
                       color: theme.colorScheme.primary,
                     ),
-                    if (_compressedSize != null && _originalSize != null) ...[
+                    if (_compressedSize != null && _originalSize != null && _compressedSize! < _originalSize!) ...[
                       Icon(
                         Icons.arrow_forward_rounded,
                         color: theme.colorScheme.onSurfaceVariant,
@@ -326,6 +324,39 @@ class _PdfCompressScreenState extends State<PdfCompressScreen> {
                 minimumSize: const Size(double.infinity, 52),
               ),
             ),
+            if (_notSmaller) ...[
+              const SizedBox(height: 16),
+              Card(
+                color: theme.colorScheme.secondaryContainer,
+                child: ListTile(
+                  leading: Icon(Icons.info_outline, color: theme.colorScheme.onSecondaryContainer),
+                  title: Text('compress_not_smaller_title'.tr()),
+                  subtitle: Text('compress_not_smaller_body'.tr()),
+                ),
+              ),
+            ],
+            if (_outPath != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => OpenFilex.open(_outPath!),
+                      icon: const Icon(Icons.open_in_new),
+                      label: Text('open_file'.tr()),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => Share.shareXFiles([XFile(_outPath!)]),
+                      icon: const Icon(Icons.share),
+                      label: Text('share'.tr()),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ] else ...[
             const SizedBox(height: 40),
             Center(

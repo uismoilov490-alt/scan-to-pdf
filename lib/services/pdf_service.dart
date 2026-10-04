@@ -28,6 +28,8 @@ class PdfService {
     required List<File> imageFiles,
     required String fileName,
     List<int>? quarterTurns,
+    // Skaner rasmlari uchun kontrast oshiriladi; tayyor rasmlarda (JPG → PDF) kerak emas
+    bool enhance = true,
   }) async {
     final pdf = pw.Document();
 
@@ -41,7 +43,12 @@ class PdfService {
         decoded = img.copyRotate(decoded, angle: turns * 90.0);
       }
 
-      final processedBytes = _enhanceImage(decoded);
+      // PNG'ning shaffof joylari JPEG'da qora bo'lib qolmasligi uchun oq fon
+      decoded = _flattenOnWhite(decoded);
+
+      final processedBytes = enhance
+          ? _enhanceImage(decoded)
+          : Uint8List.fromList(img.encodeJpg(decoded, quality: 92));
       final pdfImage = pw.MemoryImage(processedBytes);
 
       final isLandscape = decoded.width > decoded.height;
@@ -66,6 +73,14 @@ class PdfService {
     final file = await _resolveUniquePdfFile(pdfDir.path, baseName);
     await file.writeAsBytes(await pdf.save());
     return file;
+  }
+
+  static img.Image _flattenOnWhite(img.Image source) {
+    if (!source.hasAlpha) return source;
+    final background = img.Image(width: source.width, height: source.height);
+    img.fill(background, color: img.ColorRgb8(255, 255, 255));
+    img.compositeImage(background, source);
+    return background;
   }
 
   static Uint8List _enhanceImage(img.Image source) {

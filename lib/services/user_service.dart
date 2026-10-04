@@ -1,4 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'ai_service.dart';
 
 class UserService {
   static const _keyName = 'user_name';
@@ -28,6 +32,28 @@ class UserService {
     await prefs.remove(_keyPhoto);
     await prefs.remove(_keyPhone);
     await prefs.setBool(_keyLoggedIn, false);
+  }
+
+  /// Firebase, Google va lokal ma'lumotlardan to'liq chiqish.
+  static Future<void> signOut() async {
+    await FirebaseAuth.instance.signOut();
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {
+      // Google orqali kirilmagan bo'lishi mumkin
+    }
+    await clearUser();
+  }
+
+  /// Hisobni butunlay o'chiradi: avval serverdagi ma'lumotlar, keyin Firebase hisobi.
+  /// Firebase yaqinda kirishni talab qilsa `requires-recent-login` xatosi otiladi.
+  static Future<void> deleteAccount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await AiService.deleteAccountData();
+      await user.delete();
+    }
+    await signOut();
   }
 
   static Future<bool> isLoggedIn() async {

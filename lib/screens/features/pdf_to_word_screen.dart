@@ -1,12 +1,14 @@
-import 'dart:convert';
 import 'dart:io';
-import 'package:archive/archive.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
+import '../../services/document_export_service.dart';
 import '../../services/pdf_service.dart';
+import '../../widgets/pdf_source_sheet.dart';
 
 class PdfToWordScreen extends StatefulWidget {
   const PdfToWordScreen({super.key});
@@ -43,34 +45,7 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
   }
 
   Future<void> _pickPdf() async {
-    if (_savedPdfs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('no_saved_pdf'.tr())),
-      );
-      return;
-    }
-
-    final selected = await showModalBottomSheet<File>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetCtx) => ListView.builder(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(16),
-        itemCount: _savedPdfs.length,
-        itemBuilder: (_, i) {
-          final err = Theme.of(sheetCtx).colorScheme.error;
-          return ListTile(
-            leading: Icon(Icons.picture_as_pdf, color: err),
-            title: Text(_savedPdfs[i].path.split('/').last),
-            onTap: () => Navigator.pop(context, _savedPdfs[i]),
-          );
-        },
-      ),
-    );
+    final selected = await pickPdf(context, _savedPdfs);
 
     if (selected == null || !mounted) return;
     setState(() {
@@ -78,6 +53,16 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
       _extractedText = null;
       _outputPath = null;
     });
+  }
+
+  Future<void> _openOutput() async {
+    final result = await OpenFilex.open(_outputPath!);
+    if (result.type != ResultType.done && mounted) {
+      // Telefonda Word ochadigan ilova yo'q bo'lsa — ulashish orqali yuborish mumkin
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('no_app_to_open'.tr())),
+      );
+    }
   }
 
   Future<void> _convert() async {
@@ -148,7 +133,7 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'pdf_saved'.tr(namedArgs: {'name': outFile.path.split('/').last}),
+              'word_saved'.tr(namedArgs: {'name': outFile.path.split('/').last}),
             ),
             behavior: SnackBarBehavior.floating,
           ),
@@ -173,51 +158,7 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
   }
 
   Future<File> _saveAsDocx(String text) async {
-    final archive = Archive();
-
-    const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-        '<Default Extension="xml" ContentType="application/xml"/>'
-        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
-        '</Types>';
-
-    const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
-        '</Relationships>';
-
-    const docRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-        '</Relationships>';
-
-    final paras = text.split('\n').map((line) {
-      final escaped = line
-          .replaceAll('&', '&amp;')
-          .replaceAll('<', '&lt;')
-          .replaceAll('>', '&gt;');
-      return '<w:p><w:r><w:t xml:space="preserve">$escaped</w:t></w:r></w:p>';
-    }).join('');
-
-    final docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-        '<w:body>$paras'
-        '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
-        '<w:pgMar w:top="1134" w:right="850" w:bottom="1134" w:left="1701"/>'
-        '</w:sectPr>'
-        '</w:body></w:document>';
-
-    void add(String name, String content) {
-      final bytes = utf8.encode(content);
-      archive.addFile(ArchiveFile(name, bytes.length, bytes));
-    }
-
-    add('[Content_Types].xml', contentTypes);
-    add('_rels/.rels', rels);
-    add('word/document.xml', docXml);
-    add('word/_rels/document.xml.rels', docRels);
-
-    final zipBytes = ZipEncoder().encode(archive)!;
+    final zipBytes = DocumentExportService.buildDocx(text);
 
     final docsDir = await getApplicationDocumentsDirectory();
     final saveDir = Directory('${docsDir.path}/scan_to_pdf');
@@ -354,9 +295,29 @@ class _PdfToWordScreenState extends State<PdfToWordScreen> {
             if (_outputPath != null) ...[
               const SizedBox(height: 12),
               _SuccessBanner(
-                text: 'pdf_saved'.tr(
+                text: 'word_saved'.tr(
                   namedArgs: {'name': _outputPath!.split('/').last},
                 ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _openOutput,
+                      icon: const Icon(Icons.open_in_new),
+                      label: Text('open_file'.tr()),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => Share.shareXFiles([XFile(_outputPath!)]),
+                      icon: const Icon(Icons.share),
+                      label: Text('share'.tr()),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],

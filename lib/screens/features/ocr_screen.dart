@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/subscription_provider.dart';
+import '../../services/ai_service.dart';
+import '../../widgets/ai_error.dart';
 
 class OcrScreen extends StatefulWidget {
   const OcrScreen({super.key});
@@ -17,6 +22,8 @@ class _OcrScreenState extends State<OcrScreen> {
   String? _text;
   bool _processing = false;
   String? _error;
+  // AI rejimi kirill va qo'lyozmani o'qiydi; tezkor rejim telefonda, bepul.
+  bool _useAi = true;
 
   final _picker = ImagePicker();
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
@@ -32,19 +39,39 @@ class _OcrScreenState extends State<OcrScreen> {
     if (xfile == null) return;
     setState(() {
       _image = File(xfile.path);
+      _text = null;
+      _error = null;
+    });
+    await _recognize();
+  }
+
+  Future<void> _recognize() async {
+    if (_image == null) return;
+    setState(() {
       _processing = true;
       _text = null;
       _error = null;
     });
     try {
-      final inputImage = InputImage.fromFile(_image!);
-      final result = await _recognizer.processImage(inputImage);
+      final String text;
+      if (_useAi) {
+        final result = await AiService.ocr(await _image!.readAsBytes());
+        if (mounted) context.read<SubscriptionProvider>().updateQuota(result.quota);
+        text = result.text;
+      } else {
+        final result = await _recognizer.processImage(InputImage.fromFile(_image!));
+        text = result.text;
+      }
       if (mounted) {
         setState(() {
-          _text = result.text;
+          _text = text;
           _processing = false;
         });
       }
+    } on AiException catch (e) {
+      if (!mounted) return;
+      setState(() => _processing = false);
+      await showAiError(context, e);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -85,6 +112,7 @@ class _OcrScreenState extends State<OcrScreen> {
       ),
       body: Column(
         children: [
+          _buildModeBar(theme),
           if (_image != null)
             SizedBox(
               height: 180,
@@ -191,6 +219,52 @@ class _OcrScreenState extends State<OcrScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildModeBar(ThemeData theme) {
+    final quota = context.watch<SubscriptionProvider>().quota;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(
+                value: true,
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                label: Text('ocr_mode_ai'.tr()),
+              ),
+              ButtonSegment(
+                value: false,
+                icon: const Icon(Icons.bolt, size: 18),
+                label: Text('ocr_mode_fast'.tr()),
+              ),
+            ],
+            selected: {_useAi},
+            onSelectionChanged: _processing
+                ? null
+                : (s) {
+                    setState(() => _useAi = s.first);
+                    if (_image != null) _recognize();
+                  },
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _useAi
+                ? (quota != null
+                    ? '${'ocr_ai_hint'.tr()} · ${'ai_quota_left'.tr(namedArgs: {
+                          'remaining': '${quota.remaining}',
+                          'limit': '${quota.limit}',
+                        })}'
+                    : 'ocr_ai_hint'.tr())
+                : 'ocr_fast_hint'.tr(),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }

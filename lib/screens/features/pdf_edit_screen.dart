@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
 import '../../services/pdf_service.dart';
+import '../../widgets/pdf_source_sheet.dart';
 
 class PdfEditScreen extends StatefulWidget {
   const PdfEditScreen({super.key});
@@ -13,10 +16,17 @@ class PdfEditScreen extends StatefulWidget {
 }
 
 class _EditPage {
+  static int _nextId = 0;
+
+  // Ro'yxatda barqaror kalit — tartib o'zgarsa yoki sahifa o'chirilsa adashmasin
+  final int id = _nextId++;
   final File image;
-  int rotation;
-  _EditPage({required this.image}) : rotation = 0;
+  int rotation = 0;
+
+  _EditPage({required this.image});
 }
+
+enum _AddSource { images, pdf, camera }
 
 class _PdfEditScreenState extends State<PdfEditScreen> {
   List<File> _savedPdfs = [];
@@ -42,36 +52,38 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
     }
   }
 
-  Future<void> _pickAndRenderPdf() async {
-    if (_savedPdfs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('no_saved_pdf'.tr())),
-      );
-      return;
-    }
-
-    final selected = await showModalBottomSheet<File>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => ListView.builder(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(16),
-        itemCount: _savedPdfs.length,
-        itemBuilder: (_, i) {
-          final name = _savedPdfs[i].path.split('/').last;
-          return ListTile(
-            leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-            title: Text(name),
-            onTap: () => Navigator.pop(context, _savedPdfs[i]),
+  /// PDF'ning har bir sahifasini rasmga aylantiradi (tahrirlash va saqlash shu rasmlar bilan).
+  Future<List<_EditPage>> _renderPdf(File pdf) async {
+    final tempDir = await getTemporaryDirectory();
+    final document = await PdfDocument.openFile(pdf.path);
+    final pages = <_EditPage>[];
+    try {
+      for (int i = 1; i <= document.pagesCount; i++) {
+        final page = await document.getPage(i);
+        final image = await page.render(
+          width: page.width * 2,
+          height: page.height * 2,
+          format: PdfPageImageFormat.jpeg,
+          backgroundColor: '#ffffff',
+          quality: 92,
+        );
+        await page.close();
+        if (image != null) {
+          final imgFile = File(
+            '${tempDir.path}/edit_p${i}_${DateTime.now().microsecondsSinceEpoch}.jpg',
           );
-        },
-      ),
-    );
+          await imgFile.writeAsBytes(image.bytes);
+          pages.add(_EditPage(image: imgFile));
+        }
+      }
+    } finally {
+      await document.close();
+    }
+    return pages;
+  }
 
+  Future<void> _pickAndRenderPdf() async {
+    final selected = await pickPdf(context, _savedPdfs);
     if (selected == null || !mounted) return;
 
     setState(() {
@@ -81,47 +93,90 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
     });
 
     try {
-      final tempDir = await getTemporaryDirectory();
-      final document = await PdfDocument.openFile(selected.path);
-      final pageCount = document.pagesCount;
-      final pages = <_EditPage>[];
-
-      for (int i = 1; i <= pageCount; i++) {
-        final page = await document.getPage(i);
-        final image = await page.render(
-          width: page.width * 2,
-          height: page.height * 2,
-          format: PdfPageImageFormat.jpeg,
-          backgroundColor: '#ffffff',
-        );
-        await page.close();
-
-        if (image != null) {
-          final imgFile = File(
-            '${tempDir.path}/edit_p${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          );
-          await imgFile.writeAsBytes(image.bytes);
-          pages.add(_EditPage(image: imgFile));
-        }
-      }
-      await document.close();
-
-      if (mounted) {
-        setState(() {
-          _pages = pages;
-          _rendering = false;
-        });
-      }
+      final pages = await _renderPdf(selected);
+      if (mounted) setState(() => _pages = pages);
     } catch (e) {
-      if (mounted) {
-        setState(() => _rendering = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('error_prefix'.tr(namedArgs: {'message': e.toString()})),
-            backgroundColor: Colors.red,
-          ),
-        );
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _rendering = false);
+    }
+  }
+
+  Future<void> _addPages() async {
+    final source = await showModalBottomSheet<_AddSource>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('edit_add_title'.tr(),
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.image_outlined),
+              title: Text('edit_add_images'.tr()),
+              subtitle: Text('edit_add_images_hint'.tr()),
+              onTap: () => Navigator.pop(ctx, _AddSource.images),
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              title: Text('edit_add_pdf'.tr()),
+              subtitle: Text('edit_add_pdf_hint'.tr()),
+              onTap: () => Navigator.pop(ctx, _AddSource.pdf),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: Text('edit_add_camera'.tr()),
+              onTap: () => Navigator.pop(ctx, _AddSource.camera),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+
+    try {
+      List<_EditPage> added = [];
+      switch (source) {
+        case _AddSource.images:
+          final result = await FilePicker.platform.pickFiles(
+            type: FileType.custom,
+            allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'],
+            allowMultiple: true,
+          );
+          added = (result?.files ?? [])
+              .where((f) => f.path != null)
+              .map((f) => _EditPage(image: File(f.path!)))
+              .toList();
+        case _AddSource.pdf:
+          final pdf = await pickPdf(context, _savedPdfs);
+          if (pdf == null || !mounted) return;
+          setState(() => _rendering = true);
+          added = await _renderPdf(pdf);
+        case _AddSource.camera:
+          final shot = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 92);
+          if (shot != null) added = [_EditPage(image: File(shot.path))];
       }
+      if (added.isEmpty || !mounted) return;
+      setState(() => _pages.addAll(added));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('edit_pages_added'.tr(namedArgs: {'count': '${added.length}'})),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted && _rendering) setState(() => _rendering = false);
     }
   }
 
@@ -136,6 +191,8 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
         imageFiles: _pages.map((p) => p.image).toList(),
         fileName: name,
         quarterTurns: _pages.map((p) => p.rotation).toList(),
+        // Tahrirlashda sahifalar asl ko'rinishida qolishi kerak (skaner filtrisiz)
+        enhance: false,
       );
 
       if (!mounted) return;
@@ -147,16 +204,19 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
       );
       Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('error_prefix'.tr(namedArgs: {'message': e.toString()})),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) setState(() => _saving = false);
+      _showError(e);
     }
+  }
+
+  void _showError(Object e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('error_prefix'.tr(namedArgs: {'message': e.toString()})),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
@@ -169,24 +229,27 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
         foregroundColor: theme.colorScheme.onPrimary,
         title: Text('edit_title'.tr()),
         actions: [
+          // Sahifalar ochilgach fayl almashtirish tepada — pastki tugmalarni to'smasin
           if (_pages.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.save_rounded),
-              onPressed: _saving ? null : _savePdf,
-              tooltip: 'save'.tr(),
+              icon: const Icon(Icons.folder_open),
+              onPressed: _rendering ? null : _pickAndRenderPdf,
+              tooltip: 'pick_pdf'.tr(),
             ),
         ],
       ),
       body: _loadingPdfs
           ? const Center(child: CircularProgressIndicator())
           : _buildBody(theme),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _rendering ? null : _pickAndRenderPdf,
-        icon: const Icon(Icons.folder_open),
-        label: Text('pick_pdf'.tr()),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-      ),
+      floatingActionButton: _pages.isNotEmpty || _rendering
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _pickAndRenderPdf,
+              icon: const Icon(Icons.folder_open),
+              label: Text('pick_pdf'.tr()),
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
+            ),
     );
   }
 
@@ -227,9 +290,7 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
             Text(
               'edit_empty_hint2'.tr(),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 80),
           ],
@@ -254,10 +315,7 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
               const Spacer(),
               Text(
                 'edit_reorder_hint'.tr(),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -276,28 +334,33 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
             itemBuilder: (context, index) {
               final page = _pages[index];
               return Card(
-                key: ValueKey('page_$index'),
+                key: ValueKey(page.id),
                 margin: const EdgeInsets.only(bottom: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Row(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: RotatedBox(
-                          quarterTurns: page.rotation,
-                          child: Image.file(
-                            page.image,
-                            width: 65,
-                            height: 85,
-                            fit: BoxFit.cover,
+                      SizedBox(
+                        width: 85,
+                        height: 85,
+                        child: Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: RotatedBox(
+                              quarterTurns: page.rotation,
+                              child: Image.file(
+                                page.image,
+                                width: 65,
+                                height: 85,
+                                fit: BoxFit.cover,
+                                cacheWidth: 200,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'edit_page_label'.tr(namedArgs: {'number': '${index + 1}'}),
@@ -309,12 +372,8 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: Icon(
-                          Icons.rotate_right,
-                          color: theme.colorScheme.primary,
-                        ),
-                        onPressed: () =>
-                            setState(() => page.rotation = (page.rotation + 1) % 4),
+                        icon: Icon(Icons.rotate_right, color: theme.colorScheme.primary),
+                        onPressed: () => setState(() => page.rotation = (page.rotation + 1) % 4),
                         tooltip: 'edit_rotate'.tr(),
                       ),
                       IconButton(
@@ -334,22 +393,35 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: SafeArea(
             top: false,
-            child: FilledButton.icon(
-              onPressed: _saving ? null : _savePdf,
-              icon: _saving
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    )
-                  : const Icon(Icons.save),
-              label: Text(_saving ? 'edit_saving'.tr() : 'edit_save_btn'.tr()),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(double.infinity, 52),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _saving ? null : _addPages,
+                    icon: const Icon(Icons.add_rounded),
+                    label: Text('edit_add_btn'.tr()),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 52)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _saving ? null : _savePdf,
+                    icon: _saving
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.onPrimary,
+                            ),
+                          )
+                        : const Icon(Icons.save),
+                    label: Text(_saving ? 'edit_saving'.tr() : 'save'.tr()),
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

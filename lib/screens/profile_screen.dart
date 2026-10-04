@@ -1,8 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../services/api/api_client.dart';
+import '../services/ai_service.dart';
 import '../services/user_service.dart';
+import '../widgets/ai_error.dart';
 import 'register_screen.dart';
 import 'saved_documents_screen.dart';
 import '../widgets/subscription_sheet.dart';
@@ -78,8 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirm != true || !mounted) return;
 
-    await UserService.clearUser();
-    await ApiClient.clearTokens();
+    await UserService.signOut();
 
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -90,6 +91,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded, color: Theme.of(ctx).colorScheme.error),
+        title: Text('profile_delete_confirm_title'.tr()),
+        content: Text('profile_delete_confirm_body'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('cancel'.tr()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+            ),
+            child: Text('profile_delete_account'.tr()),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await UserService.deleteAccount();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        // Xavfsizlik uchun Firebase yaqinda kirishni talab qiladi
+        await UserService.signOut();
+        messenger.showSnackBar(SnackBar(
+          content: Text('profile_delete_relogin'.tr()),
+          behavior: SnackBarBehavior.floating,
+        ));
+        if (mounted) Navigator.pop(context, true);
+        return;
+      }
+      messenger.showSnackBar(SnackBar(
+        content: Text('error_prefix'.tr(namedArgs: {'message': e.message ?? e.code})),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    } on AiException catch (e) {
+      if (mounted) await showAiError(context, e);
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context, true);
+    messenger.showSnackBar(SnackBar(
+      content: Text('profile_delete_success'.tr()),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   void _openSubscriptionsSheet() => SubscriptionSheet.show(context);
@@ -235,6 +293,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     dense: true,
                     onTap: _logout,
                   ),
+                  if (_user != null) ...[
+                    const SizedBox(height: 10),
+                    _ProfileActionTile(
+                      icon: Icons.delete_forever_rounded,
+                      iconColor: cs.error,
+                      title: 'profile_delete_account'.tr(),
+                      subtitle: 'profile_delete_account_subtitle'.tr(),
+                      dense: true,
+                      onTap: _deleteAccount,
+                    ),
+                  ],
                 ],
               ),
             ),

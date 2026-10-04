@@ -1,0 +1,21 @@
+{
+  "name": "scan-to-pdf-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scan to PDF ilovasi uchun API: AI (Claude), kunlik limit, Pro obuna tekshiruvi",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "express": "^5.2.1",
+    "firebase-admin": "^14.5.0",
+    "google-auth-library": "^11.1.0",
+    "zod": "^4.6.5"
+  }
+}

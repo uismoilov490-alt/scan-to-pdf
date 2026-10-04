@@ -4,104 +4,55 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/subscription_provider.dart';
+import '../../services/ai_service.dart';
+import '../../services/api/api_client.dart';
 import '../../services/transliteration_service.dart';
+import '../../widgets/ai_error.dart';
+import '../../widgets/subscription_sheet.dart';
 
-// ── Matn tab yo'nalishi ──────────────────────────────────────────────────────
-enum _TxtDir { cyrToLat, latToCyr }
-
+/// Krill ↔ Lotin: Word (.docx) va PDF fayllarni ikki yo'nalishda o'giradi.
 class CyrillicLatinScreen extends StatefulWidget {
-  const CyrillicLatinScreen({super.key});
+  /// Boshlang'ich yo'nalish: [Script.cyrillic] — lotinga, [Script.latin] — kirillga.
+  final Script source;
+
+  const CyrillicLatinScreen({super.key, this.source = Script.cyrillic});
 
   @override
   State<CyrillicLatinScreen> createState() => _CyrillicLatinScreenState();
 }
 
-class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
-
-  // ── Matn tab holati ──────────────────────────────────────────────────────
-  final _srcCtrl = TextEditingController();
-  final _dstCtrl = TextEditingController();
-  _TxtDir _txtDir = _TxtDir.cyrToLat;
-
-  // ── Fayl tab holati ──────────────────────────────────────────────────────
+class _CyrillicLatinScreenState extends State<CyrillicLatinScreen> {
   File? _file;
   String _fileExt = ''; // 'pdf' | 'docx'
-  Script _sourceScript = Script.unknown;
+  late Script _sourceScript = widget.source;
+  // Fayldan aniqlangan yozuv — tanlangan yo'nalishga mos kelmasa ogohlantiramiz
+  Script _detected = Script.unknown;
+  bool get _scriptMismatch => _detected != Script.unknown && _detected != _sourceScript;
   bool _analyzing = false;
   bool _converting = false;
   String _previewText = '';
   String? _outPath;
   int _curPage = 0;
   int _totPages = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: 2, vsync: this);
-    _srcCtrl.addListener(_onTextChanged);
-  }
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    _srcCtrl.removeListener(_onTextChanged);
-    _srcCtrl.dispose();
-    _dstCtrl.dispose();
-    super.dispose();
-  }
-
-  // ── Matn tab metodlari ───────────────────────────────────────────────────
-
-  void _onTextChanged() {
-    final src = _srcCtrl.text;
-    final out = _txtDir == _TxtDir.cyrToLat
-        ? TransliterationService.toLatin(src)
-        : TransliterationService.toCyrillic(src);
-    _dstCtrl.text = out;
-    setState(() {});
-  }
-
-  void _swapTxtDir() {
-    final tmp = _srcCtrl.text;
-    setState(() {
-      _txtDir = _txtDir == _TxtDir.cyrToLat ? _TxtDir.latToCyr : _TxtDir.cyrToLat;
-      _srcCtrl.text = _dstCtrl.text;
-    });
-    _dstCtrl.text = tmp;
-    _onTextChanged();
-  }
-
-  Future<void> _copyResult() async {
-    if (_dstCtrl.text.trim().isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: _dstCtrl.text));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('translit_copied'.tr()),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _clearText() {
-    _srcCtrl.clear();
-    _dstCtrl.clear();
-    setState(() {});
-  }
-
-  // ── Fayl tab metodlari ───────────────────────────────────────────────────
+  // Ko'rib chiqishda AI o'qigan 1-sahifa matni — konvertatsiyada qayta pul sarflamaslik uchun.
+  String? _aiFirstPageText;
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.any);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'docx'],
+    );
     if (result == null || result.files.single.path == null) return;
 
     final path = result.files.single.path!;
@@ -117,9 +68,10 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
     setState(() {
       _file = File(path);
       _fileExt = ext;
-      _sourceScript = Script.unknown;
+      _detected = Script.unknown;
       _previewText = '';
       _outPath = null;
+      _aiFirstPageText = null;
       _analyzing = true;
     });
 
@@ -141,7 +93,7 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
       if (mounted) {
         setState(() {
           _previewText = preview.trim();
-          _sourceScript = detected == Script.unknown ? Script.cyrillic : detected;
+          _detected = detected;
           _analyzing = false;
         });
       }
@@ -154,37 +106,58 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
   }
 
   Future<String> _extractPdfFirstPageText() async {
-    final tempDir = await getTemporaryDirectory();
     final document = await pdfx.PdfDocument.openData(await _file!.readAsBytes());
     try {
       if (document.pagesCount == 0) return '';
-      final page = await document.getPage(1);
+      final bytes = await _renderPage(document, 1);
+      if (bytes == null) return '';
+
+      // ML Kit kirillni o'qiy olmaydi, shuning uchun yozuvni AI aniqlaydi
+      // (1 birlik). Kirilmagan yoki limit tugagan bo'lsa — telefondagi OCR.
+      if (_sourceScript == Script.cyrillic && ApiClient.isSignedIn) {
+        try {
+          final result = await AiService.ocr(bytes);
+          if (mounted) context.read<SubscriptionProvider>().updateQuota(result.quota);
+          _aiFirstPageText = result.text;
+          return result.text;
+        } on AiException {
+          // pastdagi ML Kit'ga o'tamiz
+        }
+      }
+      return await _mlKitRead(bytes);
+    } finally {
+      await document.close();
+    }
+  }
+
+  Future<Uint8List?> _renderPage(pdfx.PdfDocument document, int number) async {
+    final page = await document.getPage(number);
+    try {
       final rendered = await page.render(
         width: page.width * 2,
         height: page.height * 2,
         format: pdfx.PdfPageImageFormat.jpeg,
         backgroundColor: '#ffffff',
       );
-      await page.close();
-      if (rendered == null) return '';
-
-      final imgFile = File(
-        '${tempDir.path}/tl_preview_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-      await imgFile.writeAsBytes(rendered.bytes);
-
-      final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-      try {
-        final result = await recognizer.processImage(
-          InputImage.fromFile(imgFile),
-        );
-        return result.text;
-      } finally {
-        await recognizer.close();
-        try { await imgFile.delete(); } catch (_) {}
-      }
+      return rendered?.bytes;
     } finally {
-      await document.close();
+      await page.close();
+    }
+  }
+
+  Future<String> _mlKitRead(Uint8List bytes) async {
+    final tempDir = await getTemporaryDirectory();
+    final imgFile = File(
+      '${tempDir.path}/tl_${DateTime.now().microsecondsSinceEpoch}.jpg',
+    );
+    await imgFile.writeAsBytes(bytes);
+    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    try {
+      final result = await recognizer.processImage(InputImage.fromFile(imgFile));
+      return result.text;
+    } finally {
+      await recognizer.close();
+      try { await imgFile.delete(); } catch (_) {}
     }
   }
 
@@ -216,6 +189,27 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
           ),
         );
       }
+    } on _NotEnoughQuota catch (e) {
+      if (!mounted) return;
+      setState(() => _converting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('translit_quota_short'.tr(namedArgs: {
+            'pages': '${e.pages}',
+            'remaining': '${e.remaining}',
+          })),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'ai_upgrade_btn'.tr(),
+            onPressed: () => SubscriptionSheet.show(context),
+          ),
+        ),
+      );
+    } on AiException catch (e) {
+      if (!mounted) return;
+      setState(() => _converting = false);
+      await showAiError(context, e);
     } catch (e) {
       if (mounted) {
         setState(() => _converting = false);
@@ -231,56 +225,59 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
   }
 
   Future<File> _convertPdf() async {
-    final tempDir = await getTemporaryDirectory();
     final document = await pdfx.PdfDocument.openData(await _file!.readAsBytes());
     final pageCount = document.pagesCount;
+    // Kirill matnni faqat AI to'g'ri o'qiydi; lotinni telefondagi ML Kit bepul o'qiydi.
+    final useAi = _sourceScript == Script.cyrillic;
 
     if (mounted) setState(() => _totPages = pageCount);
 
-    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     final paragraphs = <String>[];
 
     try {
+      if (useAi) _ensureAiQuotaFor(pageCount - (_aiFirstPageText != null ? 1 : 0));
+
       for (int i = 1; i <= pageCount; i++) {
         if (!mounted) break;
         setState(() => _curPage = i);
 
-        final page = await document.getPage(i);
-        final rendered = await page.render(
-          width: page.width * 2,
-          height: page.height * 2,
-          format: pdfx.PdfPageImageFormat.jpeg,
-          backgroundColor: '#ffffff',
-        );
-        await page.close();
-
-        if (rendered == null) continue;
-
-        final imgFile = File(
-          '${tempDir.path}/tl_p${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        );
-        await imgFile.writeAsBytes(rendered.bytes);
-
-        try {
-          final result = await recognizer.processImage(
-            InputImage.fromFile(imgFile),
-          );
-          if (result.text.isNotEmpty) {
-            final converted = _sourceScript == Script.cyrillic
-                ? TransliterationService.toLatin(result.text)
-                : TransliterationService.toCyrillic(result.text);
-            paragraphs.add(converted);
+        final String text;
+        if (useAi && i == 1 && _aiFirstPageText != null) {
+          text = _aiFirstPageText!;
+        } else {
+          final bytes = await _renderPage(document, i);
+          if (bytes == null) continue;
+          if (useAi) {
+            final result = await AiService.ocr(bytes, hint: OcrHint.cyrillic);
+            if (mounted) context.read<SubscriptionProvider>().updateQuota(result.quota);
+            text = result.text;
+          } else {
+            text = await _mlKitRead(bytes);
           }
-        } finally {
-          try { await imgFile.delete(); } catch (_) {}
+        }
+
+        if (text.isNotEmpty) {
+          paragraphs.add(useAi
+              ? TransliterationService.toLatin(text)
+              : TransliterationService.toCyrillic(text));
         }
       }
     } finally {
-      await recognizer.close();
       await document.close();
     }
 
     return _buildAndSavePdf(paragraphs);
+  }
+
+  /// Fayl yarmida limit tugab qolmasligi uchun oldindan tekshiramiz.
+  void _ensureAiQuotaFor(int pages) {
+    if (!ApiClient.isSignedIn) {
+      throw const AiException('AUTH_REQUIRED', '');
+    }
+    final quota = context.read<SubscriptionProvider>().quota;
+    if (quota != null && quota.remaining < pages) {
+      throw _NotEnoughQuota(pages: pages, remaining: quota.remaining);
+    }
   }
 
   Future<File> _buildAndSavePdf(List<String> paragraphs) async {
@@ -351,236 +348,41 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-
-    final hasText = _srcCtrl.text.isNotEmpty || _dstCtrl.text.isNotEmpty;
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: cs.primary,
         foregroundColor: cs.onPrimary,
-        title: Text('translit_title'.tr()),
-        actions: [
-          // Matn tabida tozalash tugmasi
-          ListenableBuilder(
-            listenable: _tabs,
-            builder: (_, child) => _tabs.index == 0
-                ? IconButton(
-                    tooltip: 'translit_clear'.tr(),
-                    onPressed: hasText ? _clearText : null,
-                    icon: const Icon(Icons.delete_sweep_rounded),
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabs,
-          labelColor: cs.onPrimary,
-          unselectedLabelColor: cs.onPrimary.withValues(alpha: 0.72),
-          indicatorColor: cs.onPrimary,
-          indicatorWeight: 3,
-          tabs: [
-            Tab(text: 'translit_tab_text'.tr()),
-            Tab(text: 'translit_tab_file'.tr()),
-          ],
-        ),
+        title: Text('translit_feature_both'.tr()),
       ),
-      body: TabBarView(
-        controller: _tabs,
-        children: [
-          _buildTextTab(cs),
-          _buildFileTab(theme, cs),
-        ],
-      ),
+      body: _buildFileTab(theme, cs),
     );
   }
 
-  // ── Matn tab ─────────────────────────────────────────────────────────────
-
-  Widget _buildTextTab(ColorScheme cs) {
-    final srcLabel = _txtDir == _TxtDir.cyrToLat
-        ? 'translit_source_cyr'.tr()
-        : 'translit_source_lat'.tr();
-    final dstLabel = _txtDir == _TxtDir.cyrToLat
-        ? 'translit_result_lat'.tr()
-        : 'translit_result_cyr'.tr();
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      children: [
-        // Yo'nalish tanlash kartasi
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _dirChip(
-                    cs: cs,
-                    selected: _txtDir == _TxtDir.cyrToLat,
-                    icon: Icons.language_rounded,
-                    label: 'translit_mode_cyr_lat'.tr(),
-                    onTap: () {
-                      setState(() => _txtDir = _TxtDir.cyrToLat);
-                      _onTextChanged();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  tooltip: 'translit_swap'.tr(),
-                  onPressed: _swapTxtDir,
-                  icon: const Icon(Icons.swap_horiz_rounded),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _dirChip(
-                    cs: cs,
-                    selected: _txtDir == _TxtDir.latToCyr,
-                    icon: Icons.g_translate_rounded,
-                    label: 'translit_mode_lat_cyr'.tr(),
-                    onTap: () {
-                      setState(() => _txtDir = _TxtDir.latToCyr);
-                      _onTextChanged();
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        _textCard(
-          cs: cs,
-          title: srcLabel,
-          controller: _srcCtrl,
-          readOnly: false,
-        ),
-        const SizedBox(height: 12),
-        _textCard(
-          cs: cs,
-          title: dstLabel,
-          controller: _dstCtrl,
-          readOnly: true,
-        ),
-        const SizedBox(height: 14),
-        FilledButton.icon(
-          onPressed: _dstCtrl.text.trim().isEmpty ? null : _copyResult,
-          icon: const Icon(Icons.copy_rounded),
-          label: Text('translit_copy_result'.tr()),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(double.infinity, 52),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-        ),
-      ],
-    );
+  void _setDirection(Script source) {
+    if (source == _sourceScript) return;
+    setState(() {
+      _sourceScript = source;
+      _outPath = null;
+    });
   }
-
-  Widget _dirChip({
-    required ColorScheme cs,
-    required bool selected,
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? cs.primaryContainer : cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? cs.primary : cs.outlineVariant,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 17, color: selected ? cs.primary : cs.onSurfaceVariant),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
-                  color: selected ? cs.primary : cs.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _textCard({
-    required ColorScheme cs,
-    required String title,
-    required TextEditingController controller,
-    required bool readOnly,
-  }) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: cs.primary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: controller,
-              readOnly: readOnly,
-              minLines: 6,
-              maxLines: null,
-              decoration: InputDecoration(
-                hintText: readOnly
-                    ? 'translit_result_hint'.tr()
-                    : 'translit_input_hint'.tr(),
-                filled: true,
-                fillColor: readOnly
-                    ? cs.surfaceContainerHighest.withValues(alpha: 0.45)
-                    : cs.surfaceContainerHighest.withValues(alpha: 0.25),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: cs.outlineVariant),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: cs.outlineVariant),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Fayl tab ─────────────────────────────────────────────────────────────
 
   Widget _buildFileTab(ThemeData theme, ColorScheme cs) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
+        // Yo'nalish
+        SegmentedButton<Script>(
+          segments: [
+            ButtonSegment(value: Script.cyrillic, label: Text('translit_cyr_to_lat'.tr())),
+            ButtonSegment(value: Script.latin, label: Text('translit_lat_to_cyr'.tr())),
+          ],
+          selected: {_sourceScript},
+          showSelectedIcon: false,
+          onSelectionChanged: (_converting || _analyzing) ? null : (sel) => _setDirection(sel.first),
+        ),
+        const SizedBox(height: 12),
+
         // Fayl tanlash kartasi
         _FilePickCard(
           file: _file,
@@ -603,14 +405,23 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
         // Alifbo aniqlandi → yo'nalish tanlash
         if (_file != null && !_analyzing) ...[
           const SizedBox(height: 16),
-          _ScriptCard(
-            cs: cs,
-            sourceScript: _sourceScript,
-            onChanged: (s) => setState(() {
-              _sourceScript = s;
-              _outPath = null;
-            }),
-          ),
+          if (_scriptMismatch) ...[
+            _InfoBanner(
+              icon: Icons.warning_amber_rounded,
+              color: cs.error,
+              text: _sourceScript == Script.cyrillic
+                  ? 'translit_mismatch_latin'.tr()
+                  : 'translit_mismatch_cyrillic'.tr(),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _setDirection(_detected),
+                icon: const Icon(Icons.swap_horiz_rounded),
+                label: Text('translit_switch_direction'.tr()),
+              ),
+            ),
+          ],
 
           // PDF ogohlantirishi
           if (_fileExt == 'pdf') ...[
@@ -686,6 +497,26 @@ class _CyrillicLatinScreenState extends State<CyrillicLatinScreen>
               text: 'translit_saved'.tr(
                 namedArgs: {'name': _outPath!.split('/').last},
               ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => OpenFilex.open(_outPath!),
+                    icon: const Icon(Icons.open_in_new),
+                    label: Text('open_file'.tr()),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => Share.shareXFiles([XFile(_outPath!)]),
+                    icon: const Icon(Icons.share),
+                    label: Text('share'.tr()),
+                  ),
+                ),
+              ],
             ),
           ],
 
@@ -813,131 +644,6 @@ class _FilePickCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ScriptCard extends StatelessWidget {
-  final ColorScheme cs;
-  final Script sourceScript;
-  final ValueChanged<Script> onChanged;
-
-  const _ScriptCard({
-    required this.cs,
-    required this.sourceScript,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.find_in_page_rounded, size: 18, color: cs.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'translit_detected_label'.tr(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: cs.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _ScriptChip(
-                    cs: cs,
-                    selected: sourceScript == Script.cyrillic,
-                    label: 'translit_script_cyr'.tr(),
-                    sublabel: 'translit_script_cyr_arrow'.tr(),
-                    onTap: () => onChanged(Script.cyrillic),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _ScriptChip(
-                    cs: cs,
-                    selected: sourceScript == Script.latin,
-                    label: 'translit_script_lat'.tr(),
-                    sublabel: 'translit_script_lat_arrow'.tr(),
-                    onTap: () => onChanged(Script.latin),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ScriptChip extends StatelessWidget {
-  final ColorScheme cs;
-  final bool selected;
-  final String label;
-  final String sublabel;
-  final VoidCallback onTap;
-
-  const _ScriptChip({
-    required this.cs,
-    required this.selected,
-    required this.label,
-    required this.sublabel,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? cs.primaryContainer : cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? cs.primary : cs.outlineVariant,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: selected ? cs.primary : cs.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              sublabel,
-              style: TextStyle(
-                fontSize: 11,
-                color: selected
-                    ? cs.primary.withValues(alpha: 0.7)
-                    : cs.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -1116,4 +822,11 @@ class _EmptyFileHint extends StatelessWidget {
       ],
     );
   }
+}
+
+class _NotEnoughQuota implements Exception {
+  final int pages;
+  final int remaining;
+
+  const _NotEnoughQuota({required this.pages, required this.remaining});
 }

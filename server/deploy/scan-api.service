@@ -1,0 +1,22 @@
+[Unit]
+Description=Scan to PDF API (AI + obuna)
+After=network.target
+
+[Service]
+Type=simple
+User=scanapi
+Group=scanapi
+WorkingDirectory=/opt/scan-api
+ExecStart=/usr/bin/node --env-file=/opt/scan-api/.env src/server.js
+Restart=on-failure
+RestartSec=3
+# argosacademy bilan resurs talashmasligi uchun chegara
+MemoryMax=400M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/scan-api/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

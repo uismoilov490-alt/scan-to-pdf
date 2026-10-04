@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maxfiylik siyosati — Scan to PDF</title>
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --text:#1d2433; --muted:#5b6475; --accent:#3f5f8f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12151c; --card:#1b2029; --text:#e6e9ef; --muted:#9aa3b2; --accent:#8fb0e0; } }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:32px 16px 64px; }
+  .card { background:var(--card); border-radius:16px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+  h1 { font-size:1.6rem; margin:0 0 4px; } h2 { font-size:1.15rem; margin:28px 0 8px; color:var(--accent); }
+  .muted { color:var(--muted); font-size:.92rem; } a { color:var(--accent); }
+  ul { padding-left:1.2rem; } li { margin:4px 0; }
+  nav { margin-bottom:16px; font-size:.95rem; }
+</style>
+</head>
+<body>
+<main>
+<nav><a href="#uz">O'zbekcha</a> · <a href="#ru">Русский</a></nav>
+<div class="card" id="uz">
+  <h1>Maxfiylik siyosati</h1>
+  <p class="muted">Scan to PDF ilovasi · Oxirgi yangilanish: 2026-yil 3-oktabr</p>
+
+  <h2>1. Qanday ma'lumot to'planadi</h2>
+  <ul>
+    <li><b>Hisob ma'lumotlari:</b> Google yoki telefon raqam orqali kirsangiz — ismingiz, email yoki telefon raqamingiz (Firebase Authentication orqali).</li>
+    <li><b>Hujjatlar va rasmlar:</b> skanerlangan hujjatlar <b>faqat sizning telefoningizda</b> saqlanadi.</li>
+    <li><b>AI funksiyalari:</b> AI'dan foydalanganingizda (matnni o'qish, avtomatik nom berish) tegishli sahifa rasmi qayta ishlash uchun serverimizga va AI provayderi Anthropic'ga yuboriladi. Serverimiz rasmni <b>saqlamaydi</b> — faqat natijani qaytaradi.</li>
+    <li><b>Foydalanish hisoblagichi:</b> kunlik AI limitini hisoblash uchun kuniga nechta AI amali bajarilgani saqlanadi (hujjat mazmuni emas).</li>
+    <li><b>Obuna:</b> Pro obuna sotib olsangiz, obunani tekshirish uchun Google Play xarid tokeni va amal qilish muddati saqlanadi. To'lov kartangiz ma'lumotlari bizga kelmaydi — to'lovni Google Play amalga oshiradi.</li>
+  </ul>
+
+  <h2>2. Ma'lumotlar nima uchun ishlatiladi</h2>
+  <ul>
+    <li>Ilova funksiyalarini ishlatish (AI orqali matn o'qish, nom berish).</li>
+    <li>Kunlik limit va Pro obunani boshqarish.</li>
+    <li>Ma'lumotlaringiz <b>sotilmaydi</b> va reklama uchun ishlatilmaydi.</li>
+  </ul>
+
+  <h2>3. Uchinchi tomon xizmatlari</h2>
+  <ul>
+    <li><b>Google Firebase</b> — tizimga kirish.</li>
+    <li><b>Google Play</b> — obuna to'lovlari.</li>
+    <li><b>Anthropic (Claude AI)</b> — AI funksiyalari uchun rasmni qayta ishlash. Anthropic API orqali yuborilgan ma'lumotlarni o'z modellarini o'qitishda ishlatmaydi.</li>
+    <li><b>Google ML Kit</b> — ba'zi matn tanish amallari telefonning o'zida bajariladi.</li>
+  </ul>
+
+  <h2>4. Pasport va shaxsiy hujjatlar</h2>
+  <p>Pasport yoki ID karta skanerlari telefoningizda qoladi. Ularga AI funksiyasini qo'llasangizgina rasm qayta ishlash uchun yuboriladi va serverimizda saqlanmaydi.</p>
+
+  <h2>5. Hisobni va ma'lumotlarni o'chirish</h2>
+  <p>Ilovada <b>Profil → Hisobni o'chirish</b> orqali hisobingizni va serverdagi barcha ma'lumotlaringizni o'chirishingiz mumkin. Batafsil: <a href="/delete-account">hisobni o'chirish sahifasi</a>.</p>
+
+  <h2>6. Bolalar</h2>
+  <p>Ilova 13 yoshdan kichik bolalarga mo'ljallanmagan va ulardan ataylab ma'lumot to'plamaydi.</p>
+
+  <h2>7. Bog'lanish</h2>
+  <p>Savollar bo'yicha: <a href="mailto:__SUPPORT_EMAIL__">__SUPPORT_EMAIL__</a></p>
+</div>
+
+<div class="card" id="ru" style="margin-top:24px" lang="ru">
+  <h1>Политика конфиденциальности</h1>
+  <p class="muted">Приложение Scan to PDF · Последнее обновление: 3 октября 2026 г.</p>
+  <h2>Какие данные собираются</h2>
+  <ul>
+    <li><b>Данные аккаунта:</b> имя, email или номер телефона при входе через Google или по номеру телефона (Firebase Authentication).</li>
+    <li><b>Документы:</b> отсканированные документы хранятся <b>только на вашем телефоне</b>.</li>
+    <li><b>AI-функции:</b> при использовании AI (распознавание текста, автоназвание) изображение страницы отправляется на наш сервер и AI-провайдеру Anthropic для обработки. Наш сервер изображения <b>не хранит</b>.</li>
+    <li><b>Счётчик использования:</b> количество AI-операций в день (без содержимого документов).</li>
+    <li><b>Подписка:</b> токен покупки Google Play и срок действия. Данные карты к нам не поступают.</li>
+  </ul>
+  <h2>Использование данных</h2>
+  <p>Только для работы функций приложения, дневного лимита и подписки Pro. Данные не продаются и не используются для рекламы. Anthropic не использует данные, отправленные через API, для обучения своих моделей.</p>
+  <h2>Удаление аккаунта</h2>
+  <p>В приложении: <b>Профиль → Удалить аккаунт</b>. Подробнее: <a href="/delete-account">страница удаления аккаунта</a>.</p>
+  <h2>Контакты</h2>
+  <p><a href="mailto:__SUPPORT_EMAIL__">__SUPPORT_EMAIL__</a></p>
+</div>
+</main>
+</body>
+</html>

@@ -4,17 +4,21 @@ import 'package:xml/xml.dart';
 
 enum Script { cyrillic, latin, unknown }
 
+/// Oʻzbek kirill ↔ lotin oʻgirish (1995-yilgi rasmiy imlo qoidalari asosida).
+/// Lotin chiqishida oʻ/gʻ uchun ʻ (U+02BB), tutuq belgisi uchun ʼ (U+02BC).
 class TransliterationService {
   TransliterationService._();
 
-  // ── Kirill → Lotin ────────────────────────────────────────────────────────
+  static const _okina = 'ʻ'; // U+02BB — oʻ, gʻ
+  static const _tutuq = 'ʼ'; // U+02BC — tutuq belgisi
+
+  // ── Kirill → Lotin (е va ц alohida qoida bilan, pastda) ───────────────────
   static const Map<String, String> _cyrToLat = {
     'А': 'A',  'а': 'a',
     'Б': 'B',  'б': 'b',
     'В': 'V',  'в': 'v',
     'Г': 'G',  'г': 'g',
     'Д': 'D',  'д': 'd',
-    'Е': 'E',  'е': 'e',
     'Ё': 'Yo', 'ё': 'yo',
     'Ж': 'J',  'ж': 'j',
     'З': 'Z',  'з': 'z',
@@ -32,49 +36,54 @@ class TransliterationService {
     'У': 'U',  'у': 'u',
     'Ф': 'F',  'ф': 'f',
     'Х': 'X',  'х': 'x',
-    'Ц': 'Ts', 'ц': 'ts',
     'Ч': 'Ch', 'ч': 'ch',
     'Ш': 'Sh', 'ш': 'sh',
     'Щ': 'Sh', 'щ': 'sh',
-    'Ъ': "'",  'ъ': "'",
+    'Ъ': _tutuq, 'ъ': _tutuq,
     'Ы': 'I',  'ы': 'i',
     'Ь': '',   'ь': '',
     'Э': 'E',  'э': 'e',
     'Ю': 'Yu', 'ю': 'yu',
     'Я': 'Ya', 'я': 'ya',
     'Қ': 'Q',  'қ': 'q',
-    'Ғ': "G'", 'ғ': "g'",
+    'Ғ': 'G$_okina', 'ғ': 'g$_okina',
     'Ҳ': 'H',  'ҳ': 'h',
-    'Ў': "O'", 'ў': "o'",
+    'Ў': 'O$_okina', 'ў': 'o$_okina',
   };
 
-  // ── Lotin → Kirill: ko'p belgili ketma-ketliklar ──────────────────────────
-  // Har bir harfiy variant alohida — lowercase() ishlatilmaydi,
-  // shuning uchun "Sh"→"Ш", "SH"→"Ш", "sh"→"ш" barchasi to'g'ri.
-  static const List<(String, String)> _latToCyrSeq = [
-    // Apostrof birikmalari (o' / g') — avval tekshiriladi
-    ("O'", 'Ў'), ("o'", 'ў'),
-    ("G'", 'Ғ'), ("g'", 'ғ'),
-    // SH
-    ('SH', 'Ш'), ('Sh', 'Ш'), ('sh', 'ш'),
-    // CH
-    ('CH', 'Ч'), ('Ch', 'Ч'), ('ch', 'ч'),
-    // YO
-    ('YO', 'Ё'), ('Yo', 'Ё'), ('yo', 'ё'),
-    // YU
-    ('YU', 'Ю'), ('Yu', 'Ю'), ('yu', 'ю'),
-    // YA
-    ('YA', 'Я'), ('Ya', 'Я'), ('ya', 'я'),
-    // TS
-    ('TS', 'Ц'), ('Ts', 'Ц'), ('ts', 'ц'),
+  static const _cyrVowels = 'аеёиоуўэюяыАЕЁИОУЎЭЮЯЫ';
+  static const _latVowels = 'aeiouAEIOU';
+
+  // Oy nomlarining rasmiy yozilishi: сентябрь → sentabr, октябрь → oktabr
+  static const _cyrMonthFixes = [
+    ('сентябр', 'сентабр'), ('Сентябр', 'Сентабр'), ('СЕНТЯБР', 'СЕНТАБР'),
+    ('октябр', 'октабр'), ('Октябр', 'Октабр'), ('ОКТЯБР', 'ОКТАБР'),
   ];
 
-  // ── Lotin → Kirill: yakka harflar (katta va kichik alohida) ───────────────
+  // Lotindan kirillga: ь belgisi tiklanadigan oy nomlari
+  static const _latMonths = {
+    'yanvar': 'январь', 'fevral': 'февраль', 'aprel': 'апрель',
+    'iyun': 'июнь', 'iyul': 'июль', 'sentabr': 'сентябрь',
+    'oktabr': 'октябрь', 'noyabr': 'ноябрь', 'dekabr': 'декабрь',
+  };
+
+  // ── Lotin → Kirill: koʻp belgili birikmalar (tartib muhim) ────────────────
+  static const List<(String, String)> _latToCyrSeq = [
+    ("O'", 'Ў'), ("o'", 'ў'),
+    ("G'", 'Ғ'), ("g'", 'ғ'),
+    ('SH', 'Ш'), ('Sh', 'Ш'), ('sh', 'ш'),
+    ('CH', 'Ч'), ('Ch', 'Ч'), ('ch', 'ч'),
+    ('YO', 'Ё'), ('Yo', 'Ё'), ('yo', 'ё'),
+    ('YU', 'Ю'), ('Yu', 'Ю'), ('yu', 'ю'),
+    ('YA', 'Я'), ('Ya', 'Я'), ('ya', 'я'),
+    ('YE', 'Е'), ('Ye', 'Е'), ('ye', 'е'),
+  ];
+
+  // ── Lotin → Kirill: yakka harflar (e alohida qoida bilan) ─────────────────
   static const Map<String, String> _latToCyrSingle = {
     'A': 'А', 'a': 'а',
     'B': 'Б', 'b': 'б',
     'D': 'Д', 'd': 'д',
-    'E': 'Е', 'e': 'е',
     'F': 'Ф', 'f': 'ф',
     'G': 'Г', 'g': 'г',
     'H': 'Ҳ', 'h': 'ҳ',
@@ -98,31 +107,98 @@ class TransliterationService {
     "'": 'ъ',
   };
 
+  static bool _isLetter(String? c) =>
+      c != null && c.toLowerCase() != c.toUpperCase();
+
+  static bool _isUpper(String c) => c != c.toLowerCase();
+
   // ── Asosiy metodlar ────────────────────────────────────────────────────────
 
-  /// Kirill → Lotin
-  static String toLatin(String input) {
+  /// Kirill → Lotin.
+  /// [before]/[after] — matn boʻlagidan oldingi va keyingi belgi (Word'da bitta
+  /// soʻz bir necha boʻlakka boʻlinganda qoidalar toʻgʻri ishlashi uchun).
+  static String toLatin(String input, {String? before, String? after}) {
+    var text = input;
+    for (final (from, to) in _cyrMonthFixes) {
+      text = text.replaceAll(from, to);
+    }
+    final chars = text.split('');
     final buf = StringBuffer();
-    for (final rune in input.runes) {
-      final ch = String.fromCharCode(rune);
-      buf.write(_cyrToLat[ch] ?? ch);
+    for (var i = 0; i < chars.length; i++) {
+      final ch = chars[i];
+      final prev = i > 0 ? chars[i - 1] : before;
+      final next = i + 1 < chars.length ? chars[i + 1] : after;
+      final upper = _isUpper(ch);
+
+      String out;
+      if (ch == 'Е' || ch == 'е') {
+        // Soʻz boshida, unlidan va ъ/ь dan keyin — "ye"
+        final ye = !_isLetter(prev) || _cyrVowels.contains(prev!) || 'ЪъЬь'.contains(prev);
+        out = ye ? (upper ? 'Ye' : 'ye') : (upper ? 'E' : 'e');
+      } else if (ch == 'Ц' || ch == 'ц') {
+        // Unlidan keyin "ts", soʻz boshida va undoshdan keyin "s"
+        final ts = prev != null && _cyrVowels.contains(prev);
+        out = ts ? (upper ? 'Ts' : 'ts') : (upper ? 'S' : 's');
+      } else {
+        out = _cyrToLat[ch] ?? ch;
+      }
+
+      // BOSH HARFLI soʻzda: Ш → SH (Sh emas)
+      if (upper && out.length > 1 && _isLetter(out[1])) {
+        final allCaps = (_isLetter(next) && _isUpper(next!)) ||
+            (!_isLetter(next) && _isLetter(prev) && _isUpper(prev!));
+        if (allCaps) out = out.toUpperCase();
+      }
+      buf.write(out);
     }
     return buf.toString();
   }
 
-  /// Lotin → Kirill
-  /// Apostrof variantlari (ʻ ' ` ) avval normallanadi.
-  static String toCyrillic(String input) {
-    final text = input
-        .replaceAll('ʻ', "'") // ʻ
-        .replaceAll('‘', "'") // '
-        .replaceAll('’', "'") // '
-        .replaceAll('`', "'");
+  /// Lotin → Kirill. Apostrof variantlari (ʻ ʼ ‘ ’ `) avval normallanadi.
+  /// [before] — matn boʻlagidan oldingi belgi (Word boʻlaklari uchun).
+  static String toCyrillic(String input, {String? before}) {
+    var text = _normalizeApostrophes(input);
 
+    text = text.replaceAllMapped(
+      RegExp(r'\b(' + _latMonths.keys.join('|') + r')\b', caseSensitive: false),
+      (m) {
+        final word = m[0]!;
+        final cyr = _latMonths[word.toLowerCase()]!;
+        if (word.length > 1 && word == word.toUpperCase()) return cyr.toUpperCase();
+        if (_isUpper(word[0])) return cyr[0].toUpperCase() + cyr.substring(1);
+        return cyr;
+      },
+    );
+
+    final prevNorm = before == null ? null : _normalizeApostrophes(before);
     final buf = StringBuffer();
-    int i = 0;
+    var i = 0;
     while (i < text.length) {
-      bool matched = false;
+      final ch = text[i];
+      final prev = i > 0 ? text[i - 1] : prevNorm;
+
+      // s + tutuq + h: "Is'hoq" → "Исҳоқ" (ш emas)
+      if ((ch == 's' || ch == 'S') &&
+          i + 2 < text.length &&
+          text[i + 1] == "'" &&
+          (text[i + 2] == 'h' || text[i + 2] == 'H')) {
+        buf.write(ch == 'S' ? 'С' : 'с');
+        buf.write(text[i + 2] == 'H' ? 'Ҳ' : 'ҳ');
+        i += 3;
+        continue;
+      }
+
+      // "yo'" — y + oʻ ("yo'l" → "йўл", ё emas)
+      if ((ch == 'y' || ch == 'Y') &&
+          i + 2 < text.length &&
+          (text[i + 1] == 'o' || text[i + 1] == 'O') &&
+          text[i + 2] == "'") {
+        buf.write(ch == 'Y' ? 'Й' : 'й');
+        i += 1;
+        continue;
+      }
+
+      var matched = false;
       for (final (seq, cyr) in _latToCyrSeq) {
         if (text.startsWith(seq, i)) {
           buf.write(cyr);
@@ -131,13 +207,28 @@ class TransliterationService {
           break;
         }
       }
-      if (!matched) {
-        buf.write(_latToCyrSingle[text[i]] ?? text[i]);
-        i++;
+      if (matched) continue;
+
+      if (ch == 'e' || ch == 'E') {
+        // Soʻz boshida va unlidan keyin — "э", qolgan joyda — "е"
+        final wordStart = !_isLetter(prev) && prev != "'";
+        final afterVowel = prev != null && _latVowels.contains(prev);
+        final e = wordStart || afterVowel;
+        buf.write(e ? (ch == 'E' ? 'Э' : 'э') : (ch == 'E' ? 'Е' : 'е'));
+      } else {
+        buf.write(_latToCyrSingle[ch] ?? ch);
       }
+      i++;
     }
     return buf.toString();
   }
+
+  static String _normalizeApostrophes(String s) => s
+      .replaceAll('ʻ', "'")
+      .replaceAll('ʼ', "'")
+      .replaceAll('‘', "'")
+      .replaceAll('’', "'")
+      .replaceAll('`', "'");
 
   /// Matndagi asosiy alifboni aniqlaydi (Kirill yoki Lotin harflari soni).
   static Script detectScript(String text) {
@@ -196,17 +287,27 @@ class TransliterationService {
 
   static String _convertWordXml(String xmlContent, Script sourceScript) {
     final doc = XmlDocument.parse(xmlContent);
-    // Avval barcha elementlarni yig'amiz, so'ng modifikatsiya (lazy iterator xavfidan saqlanish)
-    final elements = doc.findAllElements('w:t').toList();
-    for (final el in elements) {
-      final text = el.innerText;
-      if (text.isEmpty) continue;
-      final converted = sourceScript == Script.cyrillic
-          ? toLatin(text)
-          : toCyrillic(text);
-      el.children
-        ..clear()
-        ..add(XmlText(converted));
+    // Xatboshi ichidagi boʻlaklar bir-biriga qoʻshni: soʻz boʻlaklarga boʻlingan
+    // boʻlsa ham "е"/"ц" qoidalari qoʻshni harfga qarab toʻgʻri qoʻllanadi.
+    for (final para in doc.findAllElements('w:p').toList()) {
+      final runs = para.findAllElements('w:t').toList();
+      final originals = runs.map((e) => e.innerText).toList();
+      for (var k = 0; k < runs.length; k++) {
+        final text = originals[k];
+        if (text.isEmpty) continue;
+        final before = k > 0 && originals[k - 1].isNotEmpty
+            ? originals[k - 1][originals[k - 1].length - 1]
+            : null;
+        final after = k + 1 < runs.length && originals[k + 1].isNotEmpty
+            ? originals[k + 1][0]
+            : null;
+        final converted = sourceScript == Script.cyrillic
+            ? toLatin(text, before: before, after: after)
+            : toCyrillic(text, before: before);
+        runs[k].children
+          ..clear()
+          ..add(XmlText(converted));
+      }
     }
     return doc.toXmlString(pretty: false);
   }
@@ -220,8 +321,11 @@ class TransliterationService {
           final xmlStr = utf8.decode(entry.content as List<int>);
           final doc = XmlDocument.parse(xmlStr);
           final buf = StringBuffer();
-          for (final el in doc.findAllElements('w:t')) {
-            buf.write(el.innerText);
+          for (final para in doc.findAllElements('w:p')) {
+            final line = para.findAllElements('w:t').map((e) => e.innerText).join();
+            if (line.isEmpty) continue;
+            if (buf.isNotEmpty) buf.write('\n');
+            buf.write(line);
             if (buf.length >= maxChars) break;
           }
           return buf.toString();

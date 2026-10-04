@@ -205,6 +205,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
+      // Firebase'ga ham kiramiz — server AI so'rovlarida Firebase token'ni tekshiradi.
+      final googleAuth = await account.authentication;
+      await FirebaseAuth.instance.signInWithCredential(
+        GoogleAuthProvider.credential(
+          idToken: googleAuth.idToken,
+          accessToken: googleAuth.accessToken,
+        ),
+      );
+
       await UserService.saveUser(
         name: account.displayName ?? account.email,
         email: account.email,

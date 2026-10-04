@@ -1,14 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/app_language.dart';
-import '../services/api/api_client.dart';
 import '../services/pdf_service.dart';
 import '../services/user_service.dart';
 import 'register_screen.dart';
 import 'saved_documents_screen.dart';
+import 'preview_screen.dart';
 import 'scanner_screen.dart';
 import 'settings_screen.dart';
 import 'features/overlay_camera_screen.dart';
@@ -18,6 +20,9 @@ import 'features/pdf_compress_screen.dart';
 import 'features/word_to_pdf_screen.dart';
 import 'features/pdf_to_word_screen.dart';
 import 'features/cyrillic_latin_screen.dart';
+import 'features/image_convert_screen.dart';
+import 'features/translate_screen.dart';
+import 'features/document_clean_screen.dart';
 import '../widgets/subscription_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -61,12 +66,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Hujjat skaneri: Google ML Kit (varaq chetini topadi, qiyshiqni to'g'rilaydi,
+  /// dog'/soyani AI bilan tozalaydi). Qurilmada ishlamasa — oddiy kamera skaneri.
   Future<void> _openScanner() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ScannerScreen()),
+    final scanner = DocumentScanner(
+      options: DocumentScannerOptions(
+        pageLimit: 50,
+        mode: ScannerMode.full,
+        isGalleryImport: true,
+      ),
     );
-    _loadPdfs();
+    try {
+      final result = await scanner.scanDocument();
+      final pages = (result.images ?? []).map(File.new).toList();
+      debugPrint('[scanner] ${pages.length} sahifa qaytdi, mounted=$mounted');
+      if (pages.isEmpty || !mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PreviewScreen(pages: pages, enhance: false, autoClean: true)),
+      );
+    } on PlatformException catch (e) {
+      if ((e.message ?? '').contains('cancelled')) return; // foydalanuvchi bekor qildi
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ScannerScreen()),
+      );
+    } finally {
+      scanner.close();
+      _loadPdfs();
+    }
   }
 
   Future<void> _openOverlayCamera(ScanOverlayMode mode) async {
@@ -115,11 +144,80 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _openClean() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DocumentCleanScreen()),
+    );
+    await _loadPdfs();
+  }
+
+  Future<void> _openTranslate() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TranslateScreen()),
+    );
+  }
+
+  /// "Rasm konvertori": 5 ta rasm formati funksiyasidan birini tanlash.
+  Future<void> _openImageConverters() async {
+    final items = <(ConvertMode, IconData, Color, String)>[
+      (ConvertMode.jpgToPdf, Icons.picture_as_pdf_rounded, const Color(0xFFDB2777), 'conv_hint_jpg_to_pdf'),
+      (ConvertMode.pdfToJpg, Icons.image_rounded, const Color(0xFFEA580C), 'conv_hint_pdf_to_jpg'),
+      (ConvertMode.webpToJpg, Icons.public_rounded, const Color(0xFF0EA5E9), 'conv_hint_webp_to_jpg'),
+      (ConvertMode.pngToJpg, Icons.transform_rounded, const Color(0xFF65A30D), 'conv_hint_png_to_jpg'),
+      (ConvertMode.jpgToPng, Icons.wallpaper_rounded, const Color(0xFF8B5CF6), 'conv_hint_jpg_to_png'),
+    ];
+    final mode = await showModalBottomSheet<ConvertMode>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('feature_image_converter'.tr(),
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            ),
+            for (final (m, icon, color, hint) in items)
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  child: Icon(icon, color: color),
+                ),
+                title: Text(m.titleKey.tr(), style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(hint.tr()),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pop(ctx, m),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (mode != null) await _openConverter(mode);
+  }
+
+  Future<void> _openConverter(ConvertMode mode) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ImageConvertScreen(mode: mode)),
+    );
+    await _loadPdfs();
+  }
+
   Future<void> _openTransliteration() async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CyrillicLatinScreen()),
     );
+    await _loadPdfs();
   }
 
   Future<void> _openRegister() async {
@@ -174,8 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirm != true || !mounted) return;
 
     Navigator.pop(context);
-    await UserService.clearUser();
-    await ApiClient.clearTokens();
+    await UserService.signOut();
     if (!mounted) return;
     setState(() => _user = null);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -438,13 +535,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Funksiyalar va hujjatlar bitta umumiy scroll'da — funksiyalar ko'payganda
+  // ham ekranga sig'maslik (overflow) bo'lmaydi.
   Widget _buildHomeContent(ThemeData theme) {
-    return Column(
-      children: [
-        _buildFeatureGrid(theme),
-        Expanded(
-          child: _pdfs.isEmpty ? _buildEmptyState(theme) : _buildPdfList(theme),
-        ),
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: _buildFeatureGrid(theme)),
+        if (_pdfs.isEmpty)
+          SliverFillRemaining(hasScrollBody: false, child: _buildEmptyState(theme))
+        else
+          _buildPdfList(theme),
       ],
     );
   }
@@ -471,6 +571,13 @@ class _HomeScreenState extends State<HomeScreen> {
         gradientStart: const Color(0xFF3730A3),
         gradientEnd: const Color(0xFF6366F1),
         onTap: () => _openOverlayCamera(ScanOverlayMode.idCard),
+      ),
+      _QuickFeature(
+        title: 'feature_clean'.tr(),
+        icon: Icons.auto_fix_high_rounded,
+        gradientStart: const Color(0xFF0E7490),
+        gradientEnd: const Color(0xFF22D3EE),
+        onTap: _openClean,
       ),
       _QuickFeature(
         title: 'feature_extract_text'.tr(),
@@ -508,11 +615,25 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: _openPdfToWord,
       ),
       _QuickFeature(
-        title: 'translit_feature'.tr(),
+        title: 'translit_feature_both'.tr(),
         icon: Icons.translate_rounded,
         gradientStart: const Color(0xFF5B21B6),
         gradientEnd: const Color(0xFF7C3AED),
         onTap: _openTransliteration,
+      ),
+      _QuickFeature(
+        title: 'feature_translate'.tr(),
+        icon: Icons.g_translate_rounded,
+        gradientStart: const Color(0xFF0F766E),
+        gradientEnd: const Color(0xFF14B8A6),
+        onTap: _openTranslate,
+      ),
+      _QuickFeature(
+        title: 'feature_image_converter'.tr(),
+        icon: Icons.photo_library_rounded,
+        gradientStart: const Color(0xFF9D174D),
+        gradientEnd: const Color(0xFFDB2777),
+        onTap: _openImageConverters,
       ),
     ];
 
@@ -686,7 +807,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return Center(
+    // Pastdagi "Skanerlash" tugmasi yozuvni to'smasligi uchun joy qoldiramiz
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 96),
+      child: Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -706,18 +830,21 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             'no_documents_hint'.tr(),
+            textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
             ),
           ),
         ],
       ),
+      ),
     );
   }
 
   Widget _buildPdfList(ThemeData theme) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+      sliver: SliverList.builder(
       itemCount: _pdfs.length,
       itemBuilder: (context, index) {
         final file = _pdfs[index];
@@ -823,6 +950,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+      ),
     );
   }
 }

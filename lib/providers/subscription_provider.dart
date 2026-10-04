@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import '../services/ai_service.dart';
 import '../services/subscription_service.dart';
 
 class SubscriptionProvider extends ChangeNotifier {
   final _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
+  StreamSubscription<User?>? _authSub;
 
   bool _isPro = false;
+  AiQuota? _quota;
   bool _loadingProducts = true;
   bool _purchasing = false;
   bool _storeAvailable = false;
@@ -15,6 +19,9 @@ class SubscriptionProvider extends ChangeNotifier {
   List<ProductDetails> _products = [];
 
   bool get isPro => _isPro;
+
+  /// Bugungi AI limiti (server ma'lumoti; tizimga kirilmagan bo'lsa null).
+  AiQuota? get quota => _quota;
   bool get loadingProducts => _loadingProducts;
   bool get purchasing => _purchasing;
   bool get storeAvailable => _storeAvailable;
@@ -33,6 +40,9 @@ class SubscriptionProvider extends ChangeNotifier {
     _isPro = await SubscriptionService.getIsProStored();
     notifyListeners();
 
+    // Pro holatining asosiy manbai — server (obuna tugasa u o'chiradi).
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((_) => refreshAccount());
+
     _storeAvailable = await _iap.isAvailable();
     if (!_storeAvailable) {
       _loadingProducts = false;
@@ -50,6 +60,53 @@ class SubscriptionProvider extends ChangeNotifier {
 
     await _loadProducts();
     await _iap.restorePurchases();
+  }
+
+  /// Serverdan Pro holati va AI limitini yangilaydi.
+  Future<void> refreshAccount() async {
+    if (FirebaseAuth.instance.currentUser == null) {
+      _quota = null;
+      notifyListeners();
+      return;
+    }
+    try {
+      _applyAccount(await AiService.me());
+    } on AiException {
+      // Server yetib bo'lmasa oxirgi ma'lum holat qoladi
+    }
+  }
+
+  /// AI so'rovidan kelgan yangi limitni darhol ko'rsatish uchun.
+  void updateQuota(AiQuota? quota) {
+    if (quota == null) return;
+    _quota = quota;
+    notifyListeners();
+  }
+
+  void _applyAccount(AiAccount account) {
+    _isPro = account.pro;
+    _quota = account.quota;
+    SubscriptionService.storeProStatus(isPro: account.pro);
+    notifyListeners();
+  }
+
+  Future<void> _verifyWithServer(PurchaseDetails purchase) async {
+    try {
+      _applyAccount(await AiService.verifyPurchase(
+        productId: purchase.productID,
+        purchaseToken: purchase.verificationData.serverVerificationData,
+      ));
+    } on AiException catch (e) {
+      // Server tekshiruvi hali sozlanmagan yoki tarmoq yo'q — Google Play
+      // xaridni tasdiqlagan, shuning uchun ilovada Pro ko'rsatamiz.
+      if (e.code == 'BILLING_NOT_CONFIGURED' || e.code == 'NETWORK' || e.needsLogin) {
+        _isPro = true;
+        await SubscriptionService.storeProStatus(
+          isPro: true,
+          purchaseId: purchase.purchaseID,
+        );
+      }
+    }
   }
 
   Future<void> _loadProducts() async {
@@ -112,11 +169,7 @@ class SubscriptionProvider extends ChangeNotifier {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
           if (SubscriptionService.productIds.contains(purchase.productID)) {
-            await SubscriptionService.storeProStatus(
-              isPro: true,
-              purchaseId: purchase.purchaseID,
-            );
-            _isPro = true;
+            await _verifyWithServer(purchase);
           }
           if (purchase.pendingCompletePurchase) {
             await _iap.completePurchase(purchase);
@@ -134,6 +187,7 @@ class SubscriptionProvider extends ChangeNotifier {
   @override
   void dispose() {
     _purchaseSub?.cancel();
+    _authSub?.cancel();
     super.dispose();
   }
 }
