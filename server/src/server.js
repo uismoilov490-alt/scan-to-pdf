@@ -13,6 +13,6 @@ const app = createApp({ config, db, ai, verifyToken });
 app.listen(config.port, config.host, () => {
   console.log(
     `[scan-api] ${config.host}:${config.port} | ai=${ai.enabled ? 'on' : 'OFF'} | ` +
-      `free=${config.freeDailyUnits}/kun pro=${config.proDailyUnits}/kun`,
+      `free=${config.freeDailyFiles} fayl/kun oylik=${config.planUnits.monthly} sahifa/oy`,
   );
 });

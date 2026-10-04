@@ -76,7 +76,10 @@ if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
   certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect
 fi
 systemctl enable --now certbot.timer >/dev/null 2>&1 || true
-certbot renew --dry-run 2>&1 | grep -E "Congratulations|simulated renewals|failed" || true
+# Sekin (bir necha daqiqa) — faqat so'ralganda: CERT_CHECK=1 bash install.sh
+if [ "${CERT_CHECK:-0}" = "1" ]; then
+  certbot renew --dry-run 2>&1 | grep -E "Congratulations|simulated renewals|failed" || true
+fi
 
 # 7) Tekshiruv
 for i in $(seq 1 20); do
