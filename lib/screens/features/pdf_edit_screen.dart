@@ -1,11 +1,15 @@
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
+import '../../services/pdf/pdf_toolkit.dart';
 import '../../services/pdf_service.dart';
+import '../../widgets/pdf_password_dialog.dart';
 import '../../widgets/pdf_source_sheet.dart';
 
 class PdfEditScreen extends StatefulWidget {
@@ -20,10 +24,15 @@ class _EditPage {
 
   // Ro'yxatda barqaror kalit — tartib o'zgarsa yoki sahifa o'chirilsa adashmasin
   final int id = _nextId++;
+
+  /// Faqat ro'yxatdagi kichik ko'rinish uchun
   final File image;
+
+  /// Saqlashda nima ko'chiriladi: asl PDF sahifasi yoki tayyorlangan rasm
+  final PageSource source;
   int rotation = 0;
 
-  _EditPage({required this.image});
+  _EditPage({required this.image, required this.source});
 }
 
 enum _AddSource { images, pdf, camera }
@@ -33,6 +42,8 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
   bool _loadingPdfs = true;
   String? _selectedPdfName;
   List<_EditPage> _pages = [];
+  // Ochilgan PDF'lar (parolsiz nusxa) — sahifalar shulardan ko'chiriladi
+  final List<Uint8List> _sources = [];
   bool _rendering = false;
   bool _saving = false;
 
@@ -52,34 +63,51 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
     }
   }
 
-  /// PDF'ning har bir sahifasini rasmga aylantiradi (tahrirlash va saqlash shu rasmlar bilan).
-  Future<List<_EditPage>> _renderPdf(File pdf) async {
+  /// PDF'ni manbalarga qo'shadi va sahifalarning kichik ko'rinishini chizadi.
+  /// Saqlashda sahifalar rasmga aylanmaydi — asl PDF sahifasi ko'chiriladi
+  /// (matn, sifat va hajm saqlanadi). Parol so'ralib bekor qilinsa — bo'sh.
+  Future<List<_EditPage>> _loadPdf(File file) async {
+    final raw = await file.readAsBytes();
+    if (!mounted) return [];
+    final bytes = await unlockPdfIfNeeded(context, raw);
+    if (bytes == null) return [];
+    final source = _sources.length;
+    _sources.add(bytes);
+
     final tempDir = await getTemporaryDirectory();
-    final document = await PdfDocument.openFile(pdf.path);
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final document = await PdfDocument.openData(bytes);
     final pages = <_EditPage>[];
     try {
       for (int i = 1; i <= document.pagesCount; i++) {
         final page = await document.getPage(i);
+        // Ro'yxatdagi kichik rasm uchun ~360 px yetarli — katta PDF ham tez ochiladi
+        final scale = 360 / page.width;
         final image = await page.render(
-          width: page.width * 2,
-          height: page.height * 2,
+          width: page.width * scale,
+          height: page.height * scale,
           format: PdfPageImageFormat.jpeg,
           backgroundColor: '#ffffff',
-          quality: 92,
+          quality: 80,
         );
         await page.close();
-        if (image != null) {
-          final imgFile = File(
-            '${tempDir.path}/edit_p${i}_${DateTime.now().microsecondsSinceEpoch}.jpg',
-          );
-          await imgFile.writeAsBytes(image.bytes);
-          pages.add(_EditPage(image: imgFile));
-        }
+        if (image == null) continue;
+        final thumb = File('${tempDir.path}/edit_${stamp}_${source}_$i.jpg');
+        await thumb.writeAsBytes(image.bytes);
+        pages.add(_EditPage(image: thumb, source: PdfPageRef(source, i - 1)));
       }
     } finally {
       await document.close();
     }
     return pages;
+  }
+
+  /// Rasm faylidan sahifa (burilish, shaffof fon va o'lcham tayyorlanadi).
+  Future<_EditPage?> _imagePage(File file) async {
+    final prepared = await PdfToolkit.prepareImage(await file.readAsBytes());
+    return prepared == null
+        ? null
+        : _EditPage(image: file, source: ImagePage(prepared));
   }
 
   Future<void> _pickAndRenderPdf() async {
@@ -90,10 +118,11 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
       _selectedPdfName = selected.path.split('/').last.replaceAll('.pdf', '');
       _rendering = true;
       _pages.clear();
+      _sources.clear();
     });
 
     try {
-      final pages = await _renderPdf(selected);
+      final pages = await _loadPdf(selected);
       if (mounted) setState(() => _pages = pages);
     } catch (e) {
       _showError(e);
@@ -156,21 +185,23 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
             allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'],
             allowMultiple: true,
           );
-          added = (result?.files ?? [])
-              .where((f) => f.path != null)
-              .map((f) => _EditPage(image: File(f.path!)))
-              .toList();
+          for (final f in result?.files ?? <PlatformFile>[]) {
+            if (f.path == null) continue;
+            final page = await _imagePage(File(f.path!));
+            if (page != null) added.add(page);
+          }
         case _AddSource.pdf:
           final pdf = await pickPdf(context, _savedPdfs);
           if (pdf == null || !mounted) return;
           setState(() => _rendering = true);
-          added = await _renderPdf(pdf);
+          added = await _loadPdf(pdf);
         case _AddSource.camera:
           final shot = await ImagePicker().pickImage(
             source: ImageSource.camera,
             imageQuality: 92,
           );
-          if (shot != null) added = [_EditPage(image: File(shot.path))];
+          final page = shot == null ? null : await _imagePage(File(shot.path));
+          if (page != null) added = [page];
       }
       if (added.isEmpty || !mounted) return;
       setState(() => _pages.addAll(added));
@@ -196,13 +227,10 @@ class _PdfEditScreenState extends State<PdfEditScreen> {
     try {
       final now = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final name = '${_selectedPdfName ?? 'Tahrirlangan'}_$now';
-      final file = await PdfService.generatePdf(
-        imageFiles: _pages.map((p) => p.image).toList(),
-        fileName: name,
-        quarterTurns: _pages.map((p) => p.rotation).toList(),
-        // Tahrirlashda sahifalar asl ko'rinishida qolishi kerak (skaner filtrisiz)
-        enhance: false,
-      );
+      final bytes = await PdfToolkit.assemble(_sources, [
+        for (final p in _pages) p.source.rotated(p.rotation),
+      ]);
+      final file = await PdfService.savePdfBytes(bytes, name);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

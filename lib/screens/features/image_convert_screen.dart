@@ -12,12 +12,20 @@ import '../../services/image_convert_service.dart';
 import '../../services/pdf_service.dart';
 import '../../widgets/pdf_source_sheet.dart';
 
-enum ConvertMode { jpgToPdf, pdfToJpg, webpToJpg, pngToJpg, jpgToPng }
+enum ConvertMode {
+  jpgToPdf,
+  pdfToJpg,
+  pdfToLongImage,
+  webpToJpg,
+  pngToJpg,
+  jpgToPng,
+}
 
 extension ConvertModeInfo on ConvertMode {
   String get titleKey => switch (this) {
     ConvertMode.jpgToPdf => 'feature_jpg_to_pdf',
     ConvertMode.pdfToJpg => 'feature_pdf_to_jpg',
+    ConvertMode.pdfToLongImage => 'feature_pdf_to_long',
     ConvertMode.webpToJpg => 'feature_webp_to_jpg',
     ConvertMode.pngToJpg => 'feature_png_to_jpg',
     ConvertMode.jpgToPng => 'feature_jpg_to_png',
@@ -26,13 +34,16 @@ extension ConvertModeInfo on ConvertMode {
   /// Fayl tanlashda ruxsat etilgan kengaytmalar (PDF rejimida ishlatilmaydi).
   List<String> get inputExtensions => switch (this) {
     ConvertMode.jpgToPdf => const ['jpg', 'jpeg', 'png', 'webp'],
-    ConvertMode.pdfToJpg => const ['pdf'],
+    ConvertMode.pdfToJpg || ConvertMode.pdfToLongImage => const ['pdf'],
     ConvertMode.webpToJpg => const ['webp'],
     ConvertMode.pngToJpg => const ['png'],
     ConvertMode.jpgToPng => const ['jpg', 'jpeg'],
   };
 
   bool get producesImages => this != ConvertMode.jpgToPdf;
+
+  bool get pdfInput =>
+      this == ConvertMode.pdfToJpg || this == ConvertMode.pdfToLongImage;
 }
 
 class ImageConvertScreen extends StatefulWidget {
@@ -56,7 +67,7 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
 
   Future<void> _pick() async {
     List<File> picked;
-    if (_mode == ConvertMode.pdfToJpg) {
+    if (_mode.pdfInput) {
       final saved = await PdfService.listSavedPdfs();
       if (!mounted) return;
       final pdf = await pickPdf(context, saved);
@@ -85,7 +96,7 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
     setState(() {
       _converting = true;
       _done = 0;
-      _total = _mode == ConvertMode.pdfToJpg ? 0 : _inputs.length;
+      _total = _mode.pdfInput ? 0 : _inputs.length;
       _results = [];
       _pdfResult = null;
     });
@@ -111,6 +122,11 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
           );
         case ConvertMode.pdfToJpg:
           _results = await ImageConvertService.pdfToJpg(
+            _inputs.first,
+            onProgress: progress,
+          );
+        case ConvertMode.pdfToLongImage:
+          _results = await ImageConvertService.pdfToLongImage(
             _inputs.first,
             onProgress: progress,
           );
@@ -168,7 +184,7 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isPdfInput = _mode == ConvertMode.pdfToJpg;
+    final isPdfInput = _mode.pdfInput;
     final hasResult = _results.isNotEmpty || _pdfResult != null;
 
     return Scaffold(

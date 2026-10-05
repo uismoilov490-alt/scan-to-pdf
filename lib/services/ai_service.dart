@@ -102,6 +102,8 @@ class AiException implements Exception {
 
 enum OcrHint { auto, cyrillic, latin, handwriting }
 
+enum AiVisionTask { table, solve, formula, explain, deadlines }
+
 class AiService {
   AiService._();
 
@@ -142,6 +144,33 @@ class AiService {
     final q = data['quota'];
     return (
       text: (data['text'] as String?) ?? '',
+      quota: q is Map<String, dynamic> ? AiQuota.fromJson(q) : null,
+    );
+  }
+
+  /// Rasm bo'yicha AI vazifasi ([AiVisionTask]); javob [lang] tilida.
+  /// Natija — vazifa sxemasidagi JSON (1 birlik limit sarflanadi).
+  static Future<({Map<String, dynamic> result, AiQuota? quota})> vision(
+    Uint8List imageBytes, {
+    required AiVisionTask task,
+    required String lang,
+  }) async {
+    final jpeg = await compute(_prepareJpeg, (imageBytes, 2000, 85));
+    final res = await _guard(
+      () => _dio.post<Map<String, dynamic>>(
+        '/ai/vision',
+        data: {
+          'task': task.name,
+          'image': base64Encode(jpeg),
+          'mediaType': 'image/jpeg',
+          'lang': lang,
+        },
+      ),
+    );
+    final data = res.data!;
+    final q = data['quota'];
+    return (
+      result: (data['result'] as Map<String, dynamic>?) ?? const {},
       quota: q is Map<String, dynamic> ? AiQuota.fromJson(q) : null,
     );
   }

@@ -7,6 +7,7 @@ const { sanitizeTitle } = require('../src/ai');
 
 const baseConfig = {
   translateModel: 'test-translate',
+  visionModel: 'test-vision',
   translateCharsPerUnit: 10,
   translateMaxChars: 50,
   freeDailyFiles: 2,
@@ -31,6 +32,9 @@ function fakeAi({ failOcr = false } = {}) {
     },
     async suggestName() {
       return { title: 'Elektr hisobi', category: 'invoice', usage: {}, model: 'test-name' };
+    },
+    async vision({ task, languageName }) {
+      return { result: { task, languageName }, usage: {}, model: 'test-vision' };
     },
     async translate({ text, imageBase64, sourceName, targetName }) {
       return {
@@ -257,4 +261,25 @@ test('tarjima: rasm 1 birlik, manba tili berilsa nomi uzatiladi', async (t) => {
   assert.equal(r.status, 200);
   assert.equal(r.json.translation, '[Uzbek (Cyrillic script)→Russian] rasm');
   assert.equal(r.json.quota.used, 1);
+});
+
+test('vision: vazifa tekshiriladi, til nomi uzatiladi, limit sarflanadi', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const bad = await s.call('POST', '/v1/ai/vision', { uid: 'u1', body: { ...img, task: 'hack' } });
+  assert.equal(bad.status, 400);
+  const proto = await s.call('POST', '/v1/ai/vision', { uid: 'u1', body: { ...img, task: 'toString' } });
+  assert.equal(proto.status, 400);
+
+  const ok = await s.call('POST', '/v1/ai/vision', { uid: 'u1', body: { ...img, task: 'solve', lang: 'uz' } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.result.task, 'solve');
+  assert.equal(ok.json.result.languageName, 'Uzbek (Latin script)');
+  assert.equal(ok.json.quota.used, 1);
+
+  const unknownLang = await s.call('POST', '/v1/ai/vision', { uid: 'u1', body: { ...img, task: 'table', lang: 'xx' } });
+  assert.equal(unknownLang.json.result.languageName, 'English');
+  // Bepul kunlik limit (testda 2 fayl) tugagach — 429
+  const over = await s.call('POST', '/v1/ai/vision', { uid: 'u1', body: { ...img, task: 'formula' } });
+  assert.equal(over.status, 429);
 });

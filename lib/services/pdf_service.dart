@@ -67,12 +67,16 @@ class PdfService {
       );
     }
 
-    final pdfDir = await _pdfSaveDirectory();
+    return savePdfBytes(await pdf.save(), fileName);
+  }
 
+  /// Tayyor PDF baytlarini saqlash papkasiga noyob nom bilan yozadi.
+  static Future<File> savePdfBytes(List<int> bytes, String fileName) async {
+    final pdfDir = await _pdfSaveDirectory();
     final safe = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
     final baseName = safe.isEmpty ? 'scan_document' : safe;
     final file = await _resolveUniquePdfFile(pdfDir.path, baseName);
-    await file.writeAsBytes(await pdf.save());
+    await file.writeAsBytes(bytes, flush: true);
     AdService.recordSave();
     return file;
   }

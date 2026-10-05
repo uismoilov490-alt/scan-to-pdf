@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/app_language.dart';
@@ -10,23 +9,14 @@ import '../services/pdf_service.dart';
 import '../services/user_service.dart';
 import 'register_screen.dart';
 import 'saved_documents_screen.dart';
-import 'preview_screen.dart';
-import 'scanner_screen.dart';
 import 'settings_screen.dart';
-import 'features/overlay_camera_screen.dart';
-import 'features/ocr_screen.dart';
-import 'features/pdf_edit_screen.dart';
-import 'features/pdf_compress_screen.dart';
-import 'features/word_to_pdf_screen.dart';
-import 'features/pdf_to_word_screen.dart';
-import 'features/cyrillic_latin_screen.dart';
-import 'features/image_convert_screen.dart';
-import 'features/translate_screen.dart';
-import 'features/document_clean_screen.dart';
 import '../widgets/subscription_sheet.dart';
 import '../services/ad_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/subscription_provider.dart';
+import '../tools/tool_catalog.dart';
+import '../widgets/tool_tile.dart';
+import 'tools_view.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<File> _pdfs = [];
   bool _loading = true;
   AppLanguage _selectedLanguage = AppLanguage.uzbek;
+  int _tab = 0;
   UserData? _user;
 
   @override
@@ -69,194 +60,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Hujjat skaneri: Google ML Kit (varaq chetini topadi, qiyshiqni to'g'rilaydi,
-  /// dog'/soyani AI bilan tozalaydi). Qurilmada ishlamasa — oddiy kamera skaneri.
   Future<void> _openScanner() async {
-    final scanner = DocumentScanner(
-      options: DocumentScannerOptions(
-        pageLimit: 50,
-        mode: ScannerMode.full,
-        isGalleryImport: true,
-      ),
-    );
-    try {
-      final result = await scanner.scanDocument();
-      final pages = (result.images ?? []).map(File.new).toList();
-      debugPrint('[scanner] ${pages.length} sahifa qaytdi, mounted=$mounted');
-      if (pages.isEmpty || !mounted) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              PreviewScreen(pages: pages, enhance: false, autoClean: true),
-        ),
-      );
-    } on PlatformException catch (e) {
-      if ((e.message ?? '').contains('cancelled'))
-        return; // foydalanuvchi bekor qildi
-      if (!mounted) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ScannerScreen()),
-      );
-    } finally {
-      scanner.close();
-      _loadPdfs();
-    }
+    await ToolCatalog.scanDocument(context);
+    if (mounted) _loadPdfs();
   }
 
-  Future<void> _openOverlayCamera(ScanOverlayMode mode) async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => OverlayCameraScreen(mode: mode)),
-    );
-    if (result == true) _loadPdfs();
-  }
-
-  Future<void> _openOcr() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const OcrScreen()),
-    );
-  }
-
-  Future<void> _openPdfEdit() async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const PdfEditScreen()),
-    );
-    if (result == true) _loadPdfs();
-  }
-
-  Future<void> _openPdfCompress() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const PdfCompressScreen()),
-    );
-    _loadPdfs();
-  }
-
-  Future<void> _openWordToPdf() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const WordToPdfScreen()),
-    );
-    _loadPdfs();
-  }
-
-  Future<void> _openPdfToWord() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const PdfToWordScreen()),
-    );
-  }
-
-  Future<void> _openClean() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DocumentCleanScreen()),
-    );
-    await _loadPdfs();
-  }
-
-  Future<void> _openTranslate() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const TranslateScreen()),
-    );
-  }
-
-  /// "Rasm konvertori": 5 ta rasm formati funksiyasidan birini tanlash.
-  Future<void> _openImageConverters() async {
-    final items = <(ConvertMode, IconData, Color, String)>[
-      (
-        ConvertMode.jpgToPdf,
-        Icons.picture_as_pdf_rounded,
-        const Color(0xFFDB2777),
-        'conv_hint_jpg_to_pdf',
-      ),
-      (
-        ConvertMode.pdfToJpg,
-        Icons.image_rounded,
-        const Color(0xFFEA580C),
-        'conv_hint_pdf_to_jpg',
-      ),
-      (
-        ConvertMode.webpToJpg,
-        Icons.public_rounded,
-        const Color(0xFF0EA5E9),
-        'conv_hint_webp_to_jpg',
-      ),
-      (
-        ConvertMode.pngToJpg,
-        Icons.transform_rounded,
-        const Color(0xFF65A30D),
-        'conv_hint_png_to_jpg',
-      ),
-      (
-        ConvertMode.jpgToPng,
-        Icons.wallpaper_rounded,
-        const Color(0xFF8B5CF6),
-        'conv_hint_jpg_to_png',
-      ),
-    ];
-    final mode = await showModalBottomSheet<ConvertMode>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text(
-                'feature_image_converter'.tr(),
-                style: Theme.of(
-                  ctx,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-            for (final (m, icon, color, hint) in items)
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.15),
-                  child: Icon(icon, color: color),
-                ),
-                title: Text(
-                  m.titleKey.tr(),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(hint.tr()),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pop(ctx, m),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-    if (mode != null) await _openConverter(mode);
-  }
-
-  Future<void> _openConverter(ConvertMode mode) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ImageConvertScreen(mode: mode)),
-    );
-    await _loadPdfs();
-  }
-
-  Future<void> _openTransliteration() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CyrillicLatinScreen()),
-    );
-    await _loadPdfs();
+  Future<void> _openTool(Tool tool) async {
+    await tool.open(context);
+    if (mounted) _loadPdfs();
   }
 
   Future<void> _openRegister() async {
@@ -395,6 +206,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final selected = await showModalBottomSheet<AppLanguage>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+      ),
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -425,84 +240,95 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ...AppLanguage.values.map((lang) {
-                      final isSelected = current == lang;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () {
-                            setModalState(() => current = lang);
-                            Navigator.pop(ctx, lang);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Theme.of(
-                                      context,
-                                    ).colorScheme.primaryContainer
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerHigh,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(
-                                        context,
-                                      ).colorScheme.outlineVariant,
-                                width: 1.2,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  lang.flag,
-                                  style: const TextStyle(fontSize: 22),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          ...AppLanguage.values.map((lang) {
+                            final isSelected = current == lang;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {
+                                  setModalState(() => current = lang);
+                                  Navigator.pop(ctx, lang);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.primaryContainer
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.primary
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.outlineVariant,
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: Row(
                                     children: [
                                       Text(
-                                        lang.title,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 15,
+                                        lang.flag,
+                                        style: const TextStyle(fontSize: 22),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              lang.title,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                            Text(
+                                              lang.subtitle,
+                                              style: TextStyle(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      Text(
-                                        lang.subtitle,
-                                        style: TextStyle(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
-                                          fontSize: 12,
-                                        ),
+                                      Icon(
+                                        isSelected
+                                            ? Icons.radio_button_checked
+                                            : Icons.radio_button_off,
+                                        color: isSelected
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                       ),
                                     ],
                                   ),
                                 ),
-                                Icon(
-                                  isSelected
-                                      ? Icons.radio_button_checked
-                                      : Icons.radio_button_off,
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -531,17 +357,54 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      drawer: _buildAppDrawer(theme),
-      body: SafeArea(
-        bottom: false,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _buildHomeContent(theme),
+    return PopScope(
+      // "Vositalar"dan orqaga — avval bosh sahifaga
+      canPop: _tab == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _tab = 0);
+      },
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        drawer: _buildAppDrawer(theme),
+        body: SafeArea(
+          bottom: false,
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : IndexedStack(
+                  index: _tab,
+                  children: [
+                    _buildHomeContent(theme),
+                    ToolsView(onToolClosed: _loadPdfs),
+                  ],
+                ),
+        ),
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AdBanner(),
+            NavigationBar(
+              height: 68,
+              selectedIndex: _tab,
+              onDestinationSelected: (i) => setState(() => _tab = i),
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Icons.home_outlined),
+                  selectedIcon: const Icon(Icons.home_rounded),
+                  label: 'nav_home'.tr(),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.apps_outlined),
+                  selectedIcon: const Icon(Icons.apps_rounded),
+                  label: 'nav_tools'.tr(),
+                ),
+              ],
+            ),
+          ],
+        ),
+        floatingActionButton: _tab == 0
+            ? _ScanFab(onPressed: _openScanner)
+            : null,
       ),
-      bottomNavigationBar: const AdBanner(),
-      floatingActionButton: _ScanFab(onPressed: _openScanner),
     );
   }
 
@@ -666,100 +529,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFeatureGrid(ThemeData theme) {
-    // 1-qator: skanerlash; 2-qator: AI funksiyalari; qolganlari — oflayn vositalar.
-    final features = <_QuickFeature>[
-      _QuickFeature(
-        title: 'feature_document'.tr(),
-        icon: Icons.document_scanner_outlined,
-        color: const Color(0xFF0A84FF),
-        onTap: _openScanner,
-      ),
-      _QuickFeature(
-        title: 'feature_passport'.tr(),
-        icon: Icons.badge_outlined,
-        color: const Color(0xFF0066CC),
-        onTap: () => _openOverlayCamera(ScanOverlayMode.passport),
-      ),
-      _QuickFeature(
-        title: 'feature_id_card'.tr(),
-        icon: Icons.credit_card_outlined,
-        color: const Color(0xFF5856D6),
-        onTap: () => _openOverlayCamera(ScanOverlayMode.idCard),
-      ),
-      _QuickFeature(
-        title: 'feature_extract_text'.tr(),
-        icon: Icons.text_snippet_outlined,
-        color: const Color(0xFFFF9500),
-        onTap: _openOcr,
-        ai: true,
-      ),
-      _QuickFeature(
-        title: 'translit_feature_both'.tr(),
-        label: 'Я⇄A',
-        color: const Color(0xFFAF52DE),
-        onTap: _openTransliteration,
-        ai: true,
-      ),
-      _QuickFeature(
-        title: 'feature_translate'.tr(),
-        icon: Icons.language_rounded,
-        color: const Color(0xFFBF5AF2),
-        onTap: _openTranslate,
-        ai: true,
-      ),
-      _QuickFeature(
-        title: 'feature_clean'.tr(),
-        icon: Icons.auto_fix_high_outlined,
-        color: const Color(0xFF32ADE6),
-        onTap: _openClean,
-      ),
-      _QuickFeature(
-        title: 'feature_pdf_edit'.tr(),
-        icon: Icons.edit_document,
-        color: const Color(0xFFFF3B30),
-        onTap: _openPdfEdit,
-      ),
-      _QuickFeature(
-        title: 'feature_pdf_compress'.tr(),
-        icon: Icons.compress_rounded,
-        color: const Color(0xFF30B0C7),
-        onTap: _openPdfCompress,
-      ),
-      _QuickFeature(
-        title: 'feature_word_to_pdf'.tr(),
-        icon: Icons.description_outlined,
-        color: const Color(0xFF34C759),
-        onTap: _openWordToPdf,
-      ),
-      _QuickFeature(
-        title: 'feature_pdf_to_word'.tr(),
-        icon: Icons.swap_horiz_rounded,
-        color: const Color(0xFF248A3D),
-        onTap: _openPdfToWord,
-      ),
-      _QuickFeature(
-        title: 'feature_image_converter'.tr(),
-        icon: Icons.image_outlined,
-        color: const Color(0xFFFFCC00),
-        iconColor: const Color(0xFF1C1C1E),
-        onTap: _openImageConverters,
-      ),
-    ];
-
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 24, 14, 8),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        itemCount: features.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 10,
-          childAspectRatio: 1.02,
-        ),
-        itemBuilder: (context, index) => _FeatureTile(feature: features[index]),
+      child: ToolGrid(
+        children: [
+          for (final tool in ToolCatalog.home)
+            ToolTile(tool: tool, onTap: () => _openTool(tool)),
+          ToolTileView(
+            title: 'tools_all'.tr(),
+            icon: Icons.apps_rounded,
+            color: cs.surfaceContainerHighest,
+            iconColor: cs.onSurface,
+            onTap: () => setState(() => _tab = 1),
+          ),
+        ],
       ),
     );
   }
@@ -1329,113 +1113,6 @@ class _PremiumCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _QuickFeature {
-  final String title;
-  final IconData? icon;
-
-  /// Ikonka o'rniga matn (masalan "Я⇄A")
-  final String? label;
-  final Color color;
-  final Color iconColor;
-  final VoidCallback onTap;
-
-  /// AI (server) ishlatadigan funksiya — ikonkada yulduzcha belgisi chiqadi
-  final bool ai;
-
-  _QuickFeature({
-    required this.title,
-    required this.color,
-    required this.onTap,
-    this.icon,
-    this.label,
-    this.iconColor = Colors.white,
-    this.ai = false,
-  });
-}
-
-class _FeatureTile extends StatelessWidget {
-  final _QuickFeature feature;
-
-  const _FeatureTile({required this.feature});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: feature.onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
-                  color: feature.color,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                alignment: Alignment.center,
-                child: feature.label != null
-                    ? Text(
-                        feature.label!,
-                        style: TextStyle(
-                          color: feature.iconColor,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      )
-                    : Icon(feature.icon, color: feature.iconColor, size: 30),
-              ),
-              if (feature.ai)
-                Positioned(
-                  top: -7,
-                  right: -7,
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerLow,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.auto_awesome,
-                      size: 14,
-                      color: feature.color,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            feature.title,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              height: 1.2,
-              color: cs.onSurface,
-            ),
-          ),
-        ],
       ),
     );
   }

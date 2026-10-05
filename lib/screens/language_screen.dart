@@ -12,7 +12,9 @@ class LanguageScreen extends StatefulWidget {
 }
 
 class _LanguageScreenState extends State<LanguageScreen> {
-  AppLanguage _selected = AppLanguage.uzbek;
+  late AppLanguage _selected = AppLanguage.fromLocale(
+    WidgetsBinding.instance.platformDispatcher.locale,
+  );
   bool _loading = false;
 
   Future<void> _confirm() async {

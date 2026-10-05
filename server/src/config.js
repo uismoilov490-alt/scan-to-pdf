@@ -23,6 +23,8 @@ const config = {
   ocrModel: process.env.OCR_MODEL ?? 'claude-sonnet-5-5',
   nameModel: process.env.NAME_MODEL ?? 'claude-haiku-4-5',
   translateModel: process.env.TRANSLATE_MODEL ?? 'claude-sonnet-5-5',
+  // Jadval, masala yechish va formula uchun
+  visionModel: process.env.VISION_MODEL ?? 'claude-sonnet-5-5',
   // Tarjima: shuncha belgi = 1 birlik limit; bitta so'rovda eng ko'pi
   translateCharsPerUnit: int('TRANSLATE_CHARS_PER_UNIT', 4000),
   translateMaxChars: int('TRANSLATE_MAX_CHARS', 20000),

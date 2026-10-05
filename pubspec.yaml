@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   image_picker: ^1.1.2
   pdf: ^3.10.8
@@ -61,11 +63,15 @@ dependencies:
   opencv_dart: ^2.2.2
   url_launcher: ^6.3.3
   google_mobile_ads: ^9.1.0
-
+  syncfusion_flutter_pdf: ^33.2.13
+  google_mlkit_barcode_scanning: ^0.12.1
+  add_2_calendar: ^3.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  integration_test:
+    sdk: flutter
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

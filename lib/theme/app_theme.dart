@@ -70,7 +70,7 @@ abstract final class AppTheme {
   }) {
     final isDark = brightness == Brightness.dark;
 
-    return ThemeData(
+    final theme = ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
@@ -87,12 +87,8 @@ abstract final class AppTheme {
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
         surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: colorScheme.onSurface),
-        titleTextStyle: TextStyle(
-          color: colorScheme.onSurface,
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-        ),
+        // Sarlavha va ikonka rangi foregroundColor'dan olinadi (qorong'i fonli
+        // ekranlar oq qilib qo'ya oladi); sarlavha uslubi — textTheme.titleLarge
       ),
       cardTheme: CardThemeData(
         color: colorScheme.surfaceContainerLow,
@@ -206,6 +202,14 @@ abstract final class AppTheme {
         circularTrackColor: colorScheme.surfaceContainerHigh,
       ),
       iconTheme: IconThemeData(color: colorScheme.onSurface),
+    );
+    return theme.copyWith(
+      textTheme: theme.textTheme.copyWith(
+        titleLarge: theme.textTheme.titleLarge?.copyWith(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 

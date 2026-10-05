@@ -11,6 +11,7 @@ import 'screens/language_screen.dart';
 import 'services/language_service.dart';
 import 'theme/app_theme.dart';
 import 'services/ad_service.dart';
+import 'models/app_language.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,9 +27,10 @@ void main() async {
 
   runApp(
     EasyLocalization(
-      supportedLocales: const [Locale('uz'), Locale('ru'), Locale('en')],
+      supportedLocales: AppLanguage.locales,
       path: 'assets/translations',
-      fallbackLocale: const Locale('uz'),
+      fallbackLocale: const Locale('en'),
+      useFallbackTranslations: true,
       saveLocale: true,
       child: MultiProvider(
         providers: [
@@ -61,7 +63,7 @@ class ScanToPdfApp extends StatelessWidget {
       themeMode: settings.themeMode,
       theme: _lightTheme,
       darkTheme: _darkTheme,
-      localizationsDelegates: context.localizationDelegates,
+      localizationsDelegates: [...context.localizationDelegates],
       supportedLocales: context.supportedLocales,
       locale: context.locale,
       navigatorObservers: [AdRouteObserver()],

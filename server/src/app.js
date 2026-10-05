@@ -5,6 +5,7 @@ const { requireAuth } = require('./auth');
 const { createQuota } = require('./quota');
 const { createBilling } = require('./billing');
 const { LANGUAGES } = require('./languages');
+const { VISION_TASKS } = require('./ai');
 
 const MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -171,6 +172,38 @@ function createApp({ config, db, ai, verifyToken }) {
         detected: LANGUAGES[result.detected] ? result.detected : null,
         quota: quota.status(req.uid, sub),
       });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Rasm bo'yicha vazifa: { task: table|solve|formula, image, mediaType, lang, fileId }
+  v1.post('/ai/vision', auth, async (req, res, next) => {
+    try {
+      const task = req.body?.task;
+      if (!Object.hasOwn(VISION_TASKS, task)) {
+        throw new ApiError(400, 'BAD_REQUEST', 'Noma\'lum vazifa');
+      }
+      const img = readImage(req.body);
+      const languageName = LANGUAGES[req.body?.lang] ?? 'English';
+      const fileId = readFileId(req.body);
+      const sub = billing.proStatus(req.uid);
+      quota.assertUnits(req.uid, sub, 1, fileId);
+
+      let out;
+      try {
+        out = await ai.vision({ task, ...img, languageName });
+      } catch (err) {
+        logCall.run(req.uid, task, config.visionModel, null, null, 0, Date.now());
+        throw err;
+      }
+      quota.charge(req.uid, sub, 1, fileId);
+      logCall.run(
+        req.uid, task, out.model,
+        out.usage?.input_tokens ?? null, out.usage?.output_tokens ?? null,
+        1, Date.now(),
+      );
+      res.json({ result: out.result, quota: quota.status(req.uid, sub) });
     } catch (err) {
       next(err);
     }

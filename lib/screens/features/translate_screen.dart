@@ -68,8 +68,15 @@ class _TranslateScreenState extends State<TranslateScreen> {
         : 'uz';
     if (!mounted) return;
     setState(() {
-      _source = prefs.getString(_kSource) ?? TranslateLanguage.auto;
-      _target = prefs.getString(_kTarget) ?? fallbackTarget;
+      // Saqlangan til ro'yxatdan olib tashlangan bo'lsa — standart tilga qaytamiz
+      final source = prefs.getString(_kSource);
+      final target = prefs.getString(_kTarget);
+      _source = source != null && TranslateLanguage.byCode(source) != null
+          ? source
+          : TranslateLanguage.auto;
+      _target = target != null && TranslateLanguage.byCode(target) != null
+          ? target
+          : fallbackTarget;
     });
   }
 

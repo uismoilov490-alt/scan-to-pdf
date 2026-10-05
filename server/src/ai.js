@@ -71,6 +71,133 @@ const TRANSLATE_SCHEMA = {
   additionalProperties: false,
 };
 
+// Rasm bo'yicha vazifalar: har biri qat'iy JSON sxema bilan qaytadi.
+const VISION_TASKS = {
+  table: {
+    maxTokens: 16000,
+    effort: 'low',
+    system:
+      'You extract tables from document photos into structured data for a spreadsheet. ' +
+      'Copy every cell exactly as printed (numbers, dates, units, signs); never invent or ' +
+      'compute values. Keep row and column order. Use an empty string for empty cells and ' +
+      'repeat nothing. If there are several tables, return each separately. If the image ' +
+      'has no table, return the text lines as a one-column table.',
+    prompt: 'Extract all tables from this image.',
+    schema: {
+      type: 'object',
+      properties: {
+        tables: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Short sheet name (max 30 chars)' },
+              rows: { type: 'array', items: { type: 'array', items: { type: 'string' } } },
+            },
+            required: ['name', 'rows'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['tables'],
+      additionalProperties: false,
+    },
+  },
+  solve: {
+    maxTokens: 8000,
+    effort: 'medium',
+    system:
+      'You are a patient tutor. Read the problem in the image (math, physics, chemistry or ' +
+      'another school/university subject) and solve it step by step so a student can follow. ' +
+      'Each step is one short paragraph; write formulas in plain readable text (use ^, /, sqrt). ' +
+      'Double-check the arithmetic. If the image has several problems, solve the first one ' +
+      'and mention it. Write everything in the requested language.',
+    prompt: 'Solve the problem in this image.',
+    schema: {
+      type: 'object',
+      properties: {
+        problem: { type: 'string', description: 'The problem restated briefly' },
+        steps: { type: 'array', items: { type: 'string' } },
+        answer: { type: 'string', description: 'Final answer only' },
+      },
+      required: ['problem', 'steps', 'answer'],
+      additionalProperties: false,
+    },
+  },
+  explain: {
+    maxTokens: 6000,
+    effort: 'medium',
+    system:
+      'You explain official documents (contracts, letters from government offices, bank and ' +
+      'medical papers, notices, fines) to an ordinary person in plain, friendly language. ' +
+      'Base everything only on what the document says; never invent amounts, dates or ' +
+      'conditions. Quote exact amounts, dates and deadlines when they appear. Be concise.',
+    prompt: 'Explain this document.',
+    schema: {
+      type: 'object',
+      properties: {
+        doc_type: { type: 'string', description: 'What kind of document this is, in a few words' },
+        summary: { type: 'string', description: '2-4 sentences: what it is about and what it means for the reader' },
+        key_points: { type: 'array', items: { type: 'string' }, description: 'Most important facts' },
+        actions: { type: 'array', items: { type: 'string' }, description: 'What the reader must do, if anything' },
+        warnings: { type: 'array', items: { type: 'string' }, description: 'Risks: fines, fees, penalties, unusual conditions' },
+      },
+      required: ['doc_type', 'summary', 'key_points', 'actions', 'warnings'],
+      additionalProperties: false,
+    },
+  },
+  deadlines: {
+    maxTokens: 3000,
+    effort: 'low',
+    system:
+      'You find deadlines and important dates in documents: payment due dates, expiry dates, ' +
+      'appointments, hearings, submission deadlines. Only include dates stated in the document ' +
+      'or computable from it (e.g. "within 10 days of the date above"); never guess. Give each ' +
+      'a short title saying what must happen.',
+    prompt: () =>
+      `Today is ${new Date().toISOString().slice(0, 10)}. List the deadlines in this document.`,
+    schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              date: { type: 'string', description: 'YYYY-MM-DD' },
+              time: { type: 'string', description: 'HH:MM (24h) or empty string if no time' },
+              details: { type: 'string', description: 'One sentence: amount, place or consequence' },
+            },
+            required: ['title', 'date', 'time', 'details'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['items'],
+      additionalProperties: false,
+    },
+  },
+  formula: {
+    maxTokens: 3000,
+    effort: 'low',
+    system:
+      'You convert mathematical or chemical formulas in an image into LaTeX. Reproduce the ' +
+      'formula exactly as written, without simplifying. If there are several formulas, put ' +
+      'each on its own line in the LaTeX using \\\\ separators.',
+    prompt: 'Convert the formula(s) in this image.',
+    schema: {
+      type: 'object',
+      properties: {
+        latex: { type: 'string', description: 'LaTeX without $ delimiters' },
+        text: { type: 'string', description: 'Same formula as readable plain Unicode text' },
+      },
+      required: ['latex', 'text'],
+      additionalProperties: false,
+    },
+  },
+};
+
 function createAi(config) {
   const client = config.anthropicApiKey
     ? new Anthropic({ apiKey: config.anthropicApiKey, maxRetries: 2, timeout: 90_000 })
@@ -216,7 +343,48 @@ function createAi(config) {
     }
   }
 
-  return { ocr, suggestName, translate, enabled: Boolean(client) };
+  /// [task] — VISION_TASKS kalitlaridan biri; [languageName] — javob tili.
+  async function vision({ task, imageBase64, mediaType, languageName }) {
+    const def = VISION_TASKS[task];
+    const c = ensureClient();
+    try {
+      const response = await c.beta.messages.create({
+        model: config.visionModel,
+        max_tokens: def.maxTokens,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        output_config: { effort: def.effort, format: { type: 'json_schema', schema: def.schema } },
+        system: `${def.system} Respond in ${languageName}.`,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+              { type: 'text', text: typeof def.prompt === 'function' ? def.prompt() : def.prompt },
+            ],
+          },
+        ],
+      });
+      if (response.stop_reason === 'refusal') {
+        throw new ApiError(422, 'AI_REFUSED', 'AI bu rasmni qayta ishlay olmadi');
+      }
+      if (response.stop_reason === 'max_tokens') {
+        throw new ApiError(413, 'TEXT_TOO_LONG', 'Natija juda katta');
+      }
+      const raw = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+      let result;
+      try {
+        result = JSON.parse(raw);
+      } catch {
+        throw new ApiError(502, 'AI_BAD_OUTPUT', 'AI javobi noto\'g\'ri');
+      }
+      return { result, usage: response.usage, model: response.model };
+    } catch (err) {
+      throw mapError(err);
+    }
+  }
+
+  return { ocr, suggestName, translate, vision, enabled: Boolean(client) };
 }
 
 // Fayl nomiga yaroqsiz belgilarni olib tashlaymiz.
@@ -228,4 +396,4 @@ function sanitizeTitle(title) {
     .slice(0, 60);
 }
 
-module.exports = { createAi, sanitizeTitle, CATEGORIES };
+module.exports = { createAi, sanitizeTitle, CATEGORIES, VISION_TASKS };

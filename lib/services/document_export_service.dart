@@ -34,7 +34,7 @@ extension ExportFormatExt on ExportFormat {
 
 /// Matnni Word/PDF/rasm ko'rinishiga chiqarish va Word'dan matn o'qish.
 class DocumentExportService {
-  static const _rtlLanguages = {'ar', 'fa', 'ur', 'he'};
+  static const _rtlLanguages = {'he'};
 
   /// .docx ichidagi matnni xatboshilar bo'yicha (har biri yangi qatordan) qaytaradi.
   static String docxText(List<int> bytes) {
@@ -114,15 +114,10 @@ class DocumentExportService {
   /// Til yozuviga mos shrift (Google Fonts'dan, birinchi marta internet kerak).
   static Future<List<pw.Font>> _fallbackFonts(String langCode) async {
     return switch (langCode) {
-      'ar' || 'fa' || 'ur' => [await PdfGoogleFonts.notoSansArabicRegular()],
       'he' => [await PdfGoogleFonts.notoSansHebrewRegular()],
-      'ko' => [await PdfGoogleFonts.notoSansKRRegular()],
-      'ja' => [await PdfGoogleFonts.notoSansJPRegular()],
       'zh' => [await PdfGoogleFonts.notoSansSCRegular()],
-      'th' => [await PdfGoogleFonts.notoSansThaiRegular()],
       'ka' => [await PdfGoogleFonts.notoSansGeorgianRegular()],
       'hy' => [await PdfGoogleFonts.notoSansArmenianRegular()],
-      'hi' => [await PdfGoogleFonts.notoSansDevanagariRegular()],
       _ => const [],
     };
   }

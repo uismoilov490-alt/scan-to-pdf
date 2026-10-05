@@ -1,8 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+
+import '../services/pdf_service.dart';
+import 'pdf_password_dialog.dart';
 
 /// PDF tanlash oynasi: telefondagi istalgan PDF (Telegram, Yuklanmalar...)
 /// yoki ilovaning o'zi saqlagan PDF'lar. Bekor qilinsa null qaytadi.
@@ -27,6 +32,26 @@ Future<File?> pickPdf(BuildContext context, List<File> saved) async {
   );
   final path = result?.files.single.path;
   return path == null ? null : File(path);
+}
+
+/// Tanlangan PDF: kengaytmasiz nomi va (parol kerak bo'lsa ochilgan) baytlari.
+typedef PickedPdf = ({String name, Uint8List bytes});
+
+/// PDF tanlaydi, kerak bo'lsa parolini so'raydi va o'qiydi — vositalar uchun
+/// umumiy kirish nuqtasi. [unlock] false bo'lsa baytlar o'zgarishsiz qaytadi.
+Future<PickedPdf?> pickPdfBytes(
+  BuildContext context, {
+  bool unlock = true,
+}) async {
+  final saved = await PdfService.listSavedPdfs();
+  if (!context.mounted) return null;
+  final file = await pickPdf(context, saved);
+  if (file == null || !context.mounted) return null;
+  final raw = await file.readAsBytes();
+  if (!context.mounted) return null;
+  final bytes = unlock ? await unlockPdfIfNeeded(context, raw) : raw;
+  if (bytes == null) return null;
+  return (name: p.basenameWithoutExtension(file.path), bytes: bytes);
 }
 
 const _deviceChoice = 'device';
