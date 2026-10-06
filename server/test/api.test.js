@@ -175,6 +175,40 @@ test('AI xato bersa limit yonmaydi', async (t) => {
   assert.equal(me.json.quota.used, 0);
 });
 
+test('bir vaqtda yuborilgan so\'rovlar limitdan oshib keta olmaydi', async (t) => {
+  let release;
+  const gate = new Promise((r) => (release = r));
+  const slow = { ...fakeAi(), async ocr() { await gate; return { text: 'x', usage: {}, model: 'm' }; } };
+  const s = await start({ ai: slow });
+  t.after(s.close);
+  const pending = Array.from({ length: 6 }, () => s.call('POST', '/v1/ai/ocr', { uid: 'u1', body: img }));
+  await new Promise((r) => setTimeout(r, 100));
+  release();
+  const codes = (await Promise.all(pending)).map((r) => r.status).sort();
+  assert.deepEqual(codes, [200, 200, 429, 429, 429, 429]);
+});
+
+test('mavjud fayl sahifasida AI xato bersa sahifa qaytariladi, fayl qoladi', async (t) => {
+  let fail = false;
+  const flaky = {
+    ...fakeAi(),
+    async ocr() {
+      if (fail) throw new ApiError(503, 'AI_UNAVAILABLE', 'down');
+      return { text: 'x', usage: {}, model: 'm' };
+    },
+  };
+  const s = await start({ ai: flaky });
+  t.after(s.close);
+  const body = { ...img, fileId: 'fayl-bbbb-1' };
+  assert.equal((await s.call('POST', '/v1/ai/ocr', { uid: 'u1', body })).status, 200);
+  fail = true;
+  assert.equal((await s.call('POST', '/v1/ai/ocr', { uid: 'u1', body })).status, 503);
+  assert.equal(s.db.prepare("SELECT units FROM free_files WHERE file_id = 'fayl-bbbb-1'").get().units, 1);
+  assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM usage_log').get().n, 1);
+  const me = await s.call('GET', '/v1/me', { uid: 'u1' });
+  assert.equal(me.json.quota.used, 1);
+});
+
 test('katta yoki noto\'g\'ri rasm rad etiladi', async (t) => {
   const s = await start();
   t.after(s.close);

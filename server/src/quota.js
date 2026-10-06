@@ -56,8 +56,12 @@ function createQuota(db, config) {
     };
   }
 
-  // Avval tekshiramiz, AI muvaffaqiyatli ishlagandan keyingina yozamiz (charge) —
-  // xato bo'lsa foydalanuvchi limiti yonmaydi.
+  const delLog = db.prepare('DELETE FROM usage_log WHERE id = ?');
+  const delFree = db.prepare('DELETE FROM free_files WHERE uid = ? AND file_id = ?');
+  const subFree = db.prepare(
+    'UPDATE free_files SET units = units - ? WHERE uid = ? AND file_id = ?',
+  );
+
   function assertUnits(uid, sub, units, fileId) {
     const s = status(uid, sub);
     if (sub.pro) {
@@ -75,24 +79,42 @@ function createQuota(db, config) {
     }
   }
 
-  function charge(uid, sub, units, fileId) {
+  // Tekshirish va yozish bitta sinxron qadamda (orada await yo'q) — bir vaqtda
+  // yuborilgan ko'p so'rov limitni chetlab o'ta olmaydi. AI xato bersa
+  // refund() band qilinganini qaytaradi.
+  function reserve(uid, sub, units, fileId) {
+    assertUnits(uid, sub, units, fileId);
     const now = Date.now();
-    logUsage.run(uid, units, fileId ?? null, now);
+    const logId = logUsage.run(uid, units, fileId ?? null, now).lastInsertRowid;
+    if (sub.pro) return { uid, units, logId, freeId: null, newFile: false };
     // fileId berilmasa har bir so'rov alohida fayl hisoblanadi
-    if (!sub.pro) addFree.run(uid, fileId ?? randomUUID(), today(now), units, now);
+    const freeId = fileId ?? randomUUID();
+    const newFile = !getFree.get(uid, freeId);
+    addFree.run(uid, freeId, today(now), units, now);
+    return { uid, units, logId, freeId, newFile };
   }
 
-  function assertNameCap(uid) {
-    if ((getDaily.get(uid, today(), 'name')?.count ?? 0) >= config.nameDailyCap) {
+  function refund(held) {
+    delLog.run(held.logId);
+    if (!held.freeId) return;
+    if (held.newFile) delFree.run(held.uid, held.freeId);
+    else subFree.run(held.units, held.uid, held.freeId);
+  }
+
+  function reserveName(uid) {
+    const day = today();
+    if ((getDaily.get(uid, day, 'name')?.count ?? 0) >= config.nameDailyCap) {
       throw new ApiError(429, 'NAME_CAP_EXCEEDED', 'Kunlik nom berish chegarasi tugadi');
     }
+    addDaily.run(uid, day, 'name', 1);
+    return day;
   }
 
-  function addName(uid) {
-    addDaily.run(uid, today(), 'name', 1);
+  function refundName(uid, day) {
+    addDaily.run(uid, day, 'name', -1);
   }
 
-  return { status, assertUnits, charge, assertNameCap, addName };
+  return { status, reserve, refund, reserveName, refundName };
 }
 
 module.exports = { createQuota, today };

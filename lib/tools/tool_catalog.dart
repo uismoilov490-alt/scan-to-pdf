@@ -104,20 +104,6 @@ abstract final class ToolCatalog {
     await Printing.layoutPdf(name: pdf.name, onLayout: (_) async => pdf.bytes);
   }
 
-  static Tool _convert(
-    String id,
-    ConvertMode mode,
-    IconData icon,
-    Color color,
-  ) => Tool(
-    id: id,
-    titleKey: mode.titleKey,
-    icon: icon,
-    color: color,
-    category: ToolCategory.convert,
-    open: (c) => _push(c, ImageConvertScreen(mode: mode)),
-  );
-
   static final List<Tool> all = [
     // ── Skanerlash
     const Tool(
@@ -333,17 +319,13 @@ abstract final class ToolCatalog {
       category: ToolCategory.convert,
       open: (c) => _push(c, const PdfToWordScreen()),
     ),
-    _convert(
-      'jpg_to_pdf',
-      ConvertMode.jpgToPdf,
-      Icons.picture_as_pdf_outlined,
-      const Color(0xFFDB2777),
-    ),
-    _convert(
-      'pdf_to_jpg',
-      ConvertMode.pdfToJpg,
-      Icons.image_outlined,
-      const Color(0xFFEA580C),
+    Tool(
+      id: 'image_convert',
+      titleKey: 'feature_image_convert',
+      icon: Icons.image_outlined,
+      color: const Color(0xFFEA580C),
+      category: ToolCategory.convert,
+      open: (c) => _push(c, const ImageConvertScreen()),
     ),
     Tool(
       id: 'pdf_to_ppt',
@@ -352,30 +334,6 @@ abstract final class ToolCatalog {
       color: const Color(0xFFD24726),
       category: ToolCategory.convert,
       open: (c) => _push(c, const PdfToPptScreen()),
-    ),
-    _convert(
-      'pdf_to_long',
-      ConvertMode.pdfToLongImage,
-      Icons.view_day_outlined,
-      const Color(0xFFF59E0B),
-    ),
-    _convert(
-      'webp_to_jpg',
-      ConvertMode.webpToJpg,
-      Icons.public_rounded,
-      const Color(0xFF0EA5E9),
-    ),
-    _convert(
-      'png_to_jpg',
-      ConvertMode.pngToJpg,
-      Icons.transform_rounded,
-      const Color(0xFF65A30D),
-    ),
-    _convert(
-      'jpg_to_png',
-      ConvertMode.jpgToPng,
-      Icons.wallpaper_rounded,
-      const Color(0xFF8B5CF6),
     ),
     // ── Rasm
     Tool(

@@ -80,16 +80,16 @@ function createApp({ config, db, ai, verifyToken }) {
       const hint = typeof req.body.hint === 'string' ? req.body.hint : 'auto';
       const fileId = readFileId(req.body);
       const sub = billing.proStatus(req.uid);
-      quota.assertUnits(req.uid, sub, 1, fileId);
+      const held = quota.reserve(req.uid, sub, 1, fileId);
 
       let result;
       try {
         result = await ai.ocr({ ...img, hint });
       } catch (err) {
+        quota.refund(held);
         logCall.run(req.uid, 'ocr', config.ocrModel, null, null, 0, Date.now());
         throw err;
       }
-      quota.charge(req.uid, sub, 1, fileId);
       logCall.run(
         req.uid, 'ocr', result.model,
         result.usage?.input_tokens ?? null, result.usage?.output_tokens ?? null,
@@ -105,10 +105,15 @@ function createApp({ config, db, ai, verifyToken }) {
     try {
       const img = readImage(req.body);
       const lang = typeof req.body.lang === 'string' ? req.body.lang : 'uz';
-      quota.assertNameCap(req.uid);
+      const day = quota.reserveName(req.uid);
 
-      const result = await ai.suggestName({ ...img, lang });
-      quota.addName(req.uid);
+      let result;
+      try {
+        result = await ai.suggestName({ ...img, lang });
+      } catch (err) {
+        quota.refundName(req.uid, day);
+        throw err;
+      }
       logCall.run(
         req.uid, 'name', result.model,
         result.usage?.input_tokens ?? null, result.usage?.output_tokens ?? null,
@@ -148,7 +153,7 @@ function createApp({ config, db, ai, verifyToken }) {
 
       const fileId = readFileId(req.body);
       const sub = billing.proStatus(req.uid);
-      quota.assertUnits(req.uid, sub, units, fileId);
+      const held = quota.reserve(req.uid, sub, units, fileId);
 
       let result;
       try {
@@ -158,10 +163,10 @@ function createApp({ config, db, ai, verifyToken }) {
           targetName: LANGUAGES[target],
         });
       } catch (err) {
+        quota.refund(held);
         logCall.run(req.uid, 'translate', config.translateModel, null, null, 0, Date.now());
         throw err;
       }
-      quota.charge(req.uid, sub, units, fileId);
       logCall.run(
         req.uid, 'translate', result.model,
         result.usage?.input_tokens ?? null, result.usage?.output_tokens ?? null,
@@ -188,16 +193,16 @@ function createApp({ config, db, ai, verifyToken }) {
       const languageName = LANGUAGES[req.body?.lang] ?? 'English';
       const fileId = readFileId(req.body);
       const sub = billing.proStatus(req.uid);
-      quota.assertUnits(req.uid, sub, 1, fileId);
+      const held = quota.reserve(req.uid, sub, 1, fileId);
 
       let out;
       try {
         out = await ai.vision({ task, ...img, languageName });
       } catch (err) {
+        quota.refund(held);
         logCall.run(req.uid, task, config.visionModel, null, null, 0, Date.now());
         throw err;
       }
-      quota.charge(req.uid, sub, 1, fileId);
       logCall.run(
         req.uid, task, out.model,
         out.usage?.input_tokens ?? null, out.usage?.output_tokens ?? null,

@@ -4,7 +4,13 @@
     <uses-permission android:name="com.android.vending.BILLING"/>
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Plaginlar (open_filex, camera) qo'shadigan, lekin ilova ishlatmaydigan ruxsatlar:
+         rasmlar tizim tanlagichi orqali olinadi, kamera ovozsiz. Play bu ruxsatlar
+         uchun alohida asoslash talab qiladi, shuning uchun olib tashlanadi. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:replace="android:maxSdkVersion" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application

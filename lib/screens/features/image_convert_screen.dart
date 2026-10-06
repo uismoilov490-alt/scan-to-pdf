@@ -12,44 +12,28 @@ import '../../services/image_convert_service.dart';
 import '../../services/pdf_service.dart';
 import '../../widgets/pdf_source_sheet.dart';
 
-enum ConvertMode {
-  jpgToPdf,
-  pdfToJpg,
-  pdfToLongImage,
-  webpToJpg,
-  pngToJpg,
-  jpgToPng,
-}
+/// Natija formati. Kirish turiga qarab mavjudlari: rasm → PDF/JPG/PNG,
+/// PDF → JPG/PNG/uzun rasm.
+enum ConvertTarget { pdf, jpg, png, long }
 
-extension ConvertModeInfo on ConvertMode {
-  String get titleKey => switch (this) {
-    ConvertMode.jpgToPdf => 'feature_jpg_to_pdf',
-    ConvertMode.pdfToJpg => 'feature_pdf_to_jpg',
-    ConvertMode.pdfToLongImage => 'feature_pdf_to_long',
-    ConvertMode.webpToJpg => 'feature_webp_to_jpg',
-    ConvertMode.pngToJpg => 'feature_png_to_jpg',
-    ConvertMode.jpgToPng => 'feature_jpg_to_png',
+extension on ConvertTarget {
+  String get label => switch (this) {
+    ConvertTarget.pdf => 'PDF',
+    ConvertTarget.jpg => 'JPG',
+    ConvertTarget.png => 'PNG',
+    ConvertTarget.long => 'conv_out_long'.tr(),
   };
 
-  /// Fayl tanlashda ruxsat etilgan kengaytmalar (PDF rejimida ishlatilmaydi).
-  List<String> get inputExtensions => switch (this) {
-    ConvertMode.jpgToPdf => const ['jpg', 'jpeg', 'png', 'webp'],
-    ConvertMode.pdfToJpg || ConvertMode.pdfToLongImage => const ['pdf'],
-    ConvertMode.webpToJpg => const ['webp'],
-    ConvertMode.pngToJpg => const ['png'],
-    ConvertMode.jpgToPng => const ['jpg', 'jpeg'],
-  };
-
-  bool get producesImages => this != ConvertMode.jpgToPdf;
-
-  bool get pdfInput =>
-      this == ConvertMode.pdfToJpg || this == ConvertMode.pdfToLongImage;
+  String get hintKey => 'conv_target_${name}_hint';
 }
 
+const _imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+const _imageTargets = [ConvertTarget.pdf, ConvertTarget.jpg, ConvertTarget.png];
+const _pdfTargets = [ConvertTarget.jpg, ConvertTarget.png, ConvertTarget.long];
+
+/// Rasm konvertori: istalgan rasm (JPG/PNG/WebP) yoki PDF → tanlangan format.
 class ImageConvertScreen extends StatefulWidget {
-  final ConvertMode mode;
-
-  const ImageConvertScreen({super.key, required this.mode});
+  const ImageConvertScreen({super.key});
 
   @override
   State<ImageConvertScreen> createState() => _ImageConvertScreenState();
@@ -57,35 +41,65 @@ class ImageConvertScreen extends StatefulWidget {
 
 class _ImageConvertScreenState extends State<ImageConvertScreen> {
   List<File> _inputs = [];
+  bool _pdfInput = false;
+  ConvertTarget _target = ConvertTarget.pdf;
   List<File> _results = [];
   File? _pdfResult;
   bool _converting = false;
   int _done = 0;
   int _total = 0;
 
-  ConvertMode get _mode => widget.mode;
+  List<ConvertTarget> get _targets => _pdfInput ? _pdfTargets : _imageTargets;
 
   Future<void> _pick() async {
+    final pdf = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text('conv_src_images'.tr()),
+              subtitle: Text('conv_src_images_hint'.tr()),
+              onTap: () => Navigator.pop(ctx, false),
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              title: Text('conv_src_pdf'.tr()),
+              subtitle: Text('conv_src_pdf_hint'.tr()),
+              onTap: () => Navigator.pop(ctx, true),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (pdf == null || !mounted) return;
+
     List<File> picked;
-    if (_mode.pdfInput) {
+    if (pdf) {
       final saved = await PdfService.listSavedPdfs();
       if (!mounted) return;
-      final pdf = await pickPdf(context, saved);
-      picked = pdf == null ? [] : [pdf];
+      final file = await pickPdf(context, saved);
+      picked = file == null ? [] : [file];
     } else {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: _mode.inputExtensions,
+        allowedExtensions: _imageExtensions,
         allowMultiple: true,
       );
-      picked = (result?.files ?? [])
-          .where((f) => f.path != null)
-          .map((f) => File(f.path!))
-          .toList();
+      picked = [
+        for (final f in result?.files ?? <PlatformFile>[])
+          if (f.path != null) File(f.path!),
+      ];
     }
     if (picked.isEmpty || !mounted) return;
     setState(() {
       _inputs = picked;
+      _pdfInput = pdf;
+      if (!_targets.contains(_target)) _target = _targets.first;
       _results = [];
       _pdfResult = null;
     });
@@ -96,59 +110,54 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
     setState(() {
       _converting = true;
       _done = 0;
-      _total = _mode.pdfInput ? 0 : _inputs.length;
+      _total = _pdfInput ? 0 : _inputs.length;
       _results = [];
       _pdfResult = null;
     });
 
     void progress(int done, int total) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _done = done;
           _total = total;
         });
+      }
     }
 
     try {
-      switch (_mode) {
-        case ConvertMode.jpgToPdf:
+      final input = _inputs.first;
+      switch ((_pdfInput, _target)) {
+        case (false, ConvertTarget.pdf):
           final name = _inputs.length == 1
-              ? p.basenameWithoutExtension(_inputs.first.path)
+              ? p.basenameWithoutExtension(input.path)
               : 'Rasmlar_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}';
           _pdfResult = await PdfService.generatePdf(
             imageFiles: _inputs,
             fileName: name,
             enhance: false,
           );
-        case ConvertMode.pdfToJpg:
-          _results = await ImageConvertService.pdfToJpg(
-            _inputs.first,
+        case (false, _):
+          _results = await ImageConvertService.convertImages(
+            _inputs,
+            to: _target == ConvertTarget.png ? ImageFormat.png : ImageFormat.jpg,
             onProgress: progress,
           );
-        case ConvertMode.pdfToLongImage:
+        case (true, ConvertTarget.long):
           _results = await ImageConvertService.pdfToLongImage(
-            _inputs.first,
+            input,
             onProgress: progress,
           );
-        case ConvertMode.webpToJpg:
-        case ConvertMode.pngToJpg:
-          _results = await ImageConvertService.convertImages(
-            _inputs,
-            to: ImageFormat.jpg,
-            onProgress: progress,
-          );
-        case ConvertMode.jpgToPng:
-          _results = await ImageConvertService.convertImages(
-            _inputs,
-            to: ImageFormat.png,
+        case (true, _):
+          _results = await ImageConvertService.pdfToImages(
+            input,
+            format: _target == ConvertTarget.png
+                ? ImageFormat.png
+                : ImageFormat.jpg,
             onProgress: progress,
           );
       }
       if (!mounted) return;
-      final nothing = _mode.producesImages
-          ? _results.isEmpty
-          : _pdfResult == null;
-      if (nothing) _snack('conv_failed'.tr());
+      if (_results.isEmpty && _pdfResult == null) _snack('conv_failed'.tr());
     } catch (e) {
       if (mounted) _snack('error_prefix'.tr(namedArgs: {'message': '$e'}));
     } finally {
@@ -169,7 +178,7 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
   }
 
   Future<void> _shareAll() async {
-    final files = _mode.producesImages ? _results : [_pdfResult!];
+    final files = _pdfResult != null ? [_pdfResult!] : _results;
     await Share.shareXFiles(files.map((f) => XFile(f.path)).toList());
   }
 
@@ -184,12 +193,11 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isPdfInput = _mode.pdfInput;
     final hasResult = _results.isNotEmpty || _pdfResult != null;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(title: Text(_mode.titleKey.tr())),
+      appBar: AppBar(title: Text('feature_image_convert'.tr())),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -206,26 +214,19 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
                 radius: 26,
                 backgroundColor: cs.primaryContainer,
                 child: Icon(
-                  isPdfInput
+                  _pdfInput
                       ? Icons.picture_as_pdf
                       : Icons.add_photo_alternate_outlined,
                   color: cs.onPrimaryContainer,
                 ),
               ),
               title: Text(
-                isPdfInput ? 'pick_pdf'.tr() : 'conv_pick_images'.tr(),
+                'conv_pick_files'.tr(),
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               subtitle: Text(
                 _inputs.isEmpty
-                    ? 'conv_formats'.tr(
-                        namedArgs: {
-                          'formats': _mode.inputExtensions
-                              .map((e) => e.toUpperCase())
-                              .toSet()
-                              .join(', '),
-                        },
-                      )
+                    ? 'conv_pick_hint'.tr()
                     : _inputs.length == 1
                     ? p.basename(_inputs.first.path)
                     : 'conv_selected'.tr(
@@ -236,7 +237,7 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
               onTap: _converting ? null : _pick,
             ),
           ),
-          if (_inputs.isNotEmpty && !isPdfInput) ...[
+          if (_inputs.isNotEmpty && !_pdfInput) ...[
             const SizedBox(height: 12),
             SizedBox(
               height: 84,
@@ -259,6 +260,38 @@ class _ImageConvertScreenState extends State<ImageConvertScreen> {
                     ),
                   ),
                 ),
+              ),
+            ),
+          ],
+          if (_inputs.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              'conv_output'.tr(),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<ConvertTarget>(
+              segments: [
+                for (final t in _targets)
+                  ButtonSegment(value: t, label: Text(t.label)),
+              ],
+              selected: {_target},
+              showSelectedIcon: false,
+              onSelectionChanged: _converting
+                  ? null
+                  : (s) => setState(() {
+                      _target = s.first;
+                      _results = [];
+                      _pdfResult = null;
+                    }),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _target.hintKey.tr(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
               ),
             ),
           ],

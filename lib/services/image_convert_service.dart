@@ -59,13 +59,15 @@ class ImageConvertService {
     return results;
   }
 
-  /// PDF'ning har bir sahifasini JPG rasmga aylantiradi.
-  static Future<List<File>> pdfToJpg(
+  /// PDF'ning har bir sahifasini alohida rasmga (JPG yoki PNG) aylantiradi.
+  static Future<List<File>> pdfToImages(
     File pdf, {
+    ImageFormat format = ImageFormat.jpg,
     void Function(int done, int total)? onProgress,
   }) async {
     final dir = await _outputDir();
     final base = p.basenameWithoutExtension(pdf.path);
+    final png = format == ImageFormat.png;
     final document = await PdfDocument.openFile(pdf.path);
     final results = <File>[];
     try {
@@ -76,7 +78,7 @@ class ImageConvertService {
           final rendered = await page.render(
             width: page.width * 2,
             height: page.height * 2,
-            format: PdfPageImageFormat.jpeg,
+            format: png ? PdfPageImageFormat.png : PdfPageImageFormat.jpeg,
             backgroundColor: '#ffffff',
             quality: 92,
           );
@@ -84,7 +86,7 @@ class ImageConvertService {
             final out = await _uniqueFile(
               dir,
               total == 1 ? base : '${base}_$i',
-              'jpg',
+              png ? 'png' : 'jpg',
             );
             await out.writeAsBytes(rendered.bytes);
             results.add(out);
@@ -102,7 +104,6 @@ class ImageConvertService {
   }
 
   /// Tayyor rasm baytlarini scan_to_pdf/rasmlar papkasiga noyob nom bilan yozadi.
-  /// Tayyor rasm baytlarini  ga noyob nom bilan yozadi.
   static Future<File> saveImage(
     List<int> bytes,
     String baseName, {

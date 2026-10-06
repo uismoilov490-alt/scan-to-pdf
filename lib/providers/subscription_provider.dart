@@ -20,6 +20,7 @@ class SubscriptionProvider extends ChangeNotifier {
   bool _storeAvailable = false;
   String? _error;
   List<ProductDetails> _products = [];
+  String? _restoredFor;
 
   bool get isPro => _isPro;
 
@@ -46,9 +47,10 @@ class SubscriptionProvider extends ChangeNotifier {
     notifyListeners();
 
     // Pro holatining asosiy manbai — server (obuna tugasa u o'chiradi).
-    _authSub = FirebaseAuth.instance.authStateChanges().listen(
-      (_) => refreshAccount(),
-    );
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((_) {
+      refreshAccount();
+      _restoreForUser();
+    });
 
     _storeAvailable = await _iap.isAvailable();
     if (!_storeAvailable) {
@@ -66,7 +68,21 @@ class SubscriptionProvider extends ChangeNotifier {
     );
 
     await _loadProducts();
-    await _iap.restorePurchases();
+    await _restoreForUser();
+  }
+
+  /// Xaridni server faqat hisobga bog'lay oladi — shuning uchun har bir kirgan
+  /// foydalanuvchi uchun bir marta tiklanadi (kirishdan oldin olingan obuna
+  /// ham kirgach darhol ulanadi).
+  Future<void> _restoreForUser() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid == _restoredFor || _purchaseSub == null) return;
+    _restoredFor = uid;
+    try {
+      await _iap.restorePurchases();
+    } catch (_) {
+      _restoredFor = null;
+    }
   }
 
   /// Serverdan Pro holati va AI limitini yangilaydi.
